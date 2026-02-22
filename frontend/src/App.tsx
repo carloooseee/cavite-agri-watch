@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import './App.css';
 import 'ol/ol.css';
 import Map from 'ol/Map';
@@ -7,16 +8,33 @@ import TileLayer from 'ol/layer/Tile';
 import OSM from 'ol/source/OSM';
 import { fromLonLat } from 'ol/proj';
 
+const mockNdviData = [
+  { time: '00:00', value: 0.65 },
+  { time: '04:00', value: 0.68 },
+  { time: '08:00', value: 0.72 },
+  { time: '12:00', value: 0.81 },
+  { time: '16:00', value: 0.75 },
+  { time: '20:00', value: 0.69 },
+];
+
+const mockSarData = [
+  { time: '00:00', level: 12 },
+  { time: '04:00', level: 14 },
+  { time: '08:00', level: 18 },
+  { time: '12:00', level: 45 },
+  { time: '16:00', level: 38 },
+  { time: '20:00', level: 22 },
+];
+
 const App: React.FC = () => {
-  // Define the type for the HTML element
   const mapElement = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<Map | null>(null);
+  const [activeLayer, setActiveLayer] = useState<'NDVI' | 'SAR'>('NDVI');
 
   useEffect(() => {
     if (!mapElement.current) return;
 
-    // Cavite Coordinates: [Longitude, Latitude]
-    const caviteCenter = fromLonLat([120.9, 14.3]);
+    const caviteCenter = fromLonLat([120.90, 14.28]);
 
     mapRef.current = new Map({
       target: mapElement.current,
@@ -27,7 +45,7 @@ const App: React.FC = () => {
       ],
       view: new View({
         center: caviteCenter,
-        zoom: 11,
+        zoom: 11.5,
       }),
     });
 
@@ -38,37 +56,78 @@ const App: React.FC = () => {
     };
   }, []);
 
-  const handleFetchData = (type: 'NDVI' | 'SAR') => {
-    console.log(`Requesting ${type} data from FastAPI...`);
-    // We will wire this up to our FastAPI fetch calls next
-  };
-
   return (
     <div className="app-container">
-      <nav className="sidebar">
-        <h2 className="logo">Agri-Watch</h2>
-        <div className="status-badge">Lead Dev: Carlos</div>
-        <hr className="divider" />
-        
-        <button className="nav-btn" onClick={() => handleFetchData('NDVI')}>
-          🛰️ NDVI (Drought)
+      {/* Top Header */}
+      <header className="top-header wireframe-box">
+        <h2>Cavite Agri-Watch</h2>
+        <div className="header-status">
+          <span>Engine: Online</span>
+          <span>Telemetry: Nominal</span>
+          <span>Live: {activeLayer}</span>
+        </div>
+      </header>
+
+      {/* Left Sidebar */}
+      <nav className="sidebar wireframe-box">
+        <h3>Layers</h3>
+        <button 
+          className={`nav-btn ${activeLayer === 'NDVI' ? 'active' : ''}`} 
+          onClick={() => setActiveLayer('NDVI')}
+        >
+          NDVI Analysis
         </button>
-        <button className="nav-btn" onClick={() => handleFetchData('SAR')}>
-          🌊 SAR (Flood)
+        <button 
+          className={`nav-btn ${activeLayer === 'SAR' ? 'active' : ''}`} 
+          onClick={() => setActiveLayer('SAR')}
+        >
+          SAR Intel
         </button>
+
+        <h3 style={{ marginTop: '20px' }}>Controls</h3>
+        <button className="nav-btn">Historical Archives</button>
+        <button className="nav-btn">Alert Thresholds</button>
       </nav>
 
-      <main className="main-section">
+      {/* Center Map Area */}
+      <main className="main-section wireframe-box" style={{ padding: 0, overflow: 'hidden' }}>
         <div ref={mapElement} className="map-container"></div>
-        
-        <footer className="trends-panel">
-          <h3>Cavite Statistics & Forecast</h3>
-          <div className="chart-wrapper">
-             {/* Recharts will go here later */}
-             <p>Awaiting satellite data stream...</p>
-          </div>
-        </footer>
       </main>
+
+      {/* Right Analytics Panel */}
+      <aside className="analytics-panel wireframe-box">
+        <h3>Live Analytics</h3>
+        
+        <div className="data-card">
+          <div>Avg Vegetation Index</div>
+          <h2>0.72</h2>
+          <div className="chart-container">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={mockNdviData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="time" fontSize={12} />
+                <YAxis fontSize={12} domain={[0.6, 0.9]} />
+                <Area type="monotone" dataKey="value" stroke="#8884d8" fill="#cecece" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="data-card">
+          <div>Soil Moisture Content</div>
+          <h2>38%</h2>
+          <div className="chart-container">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={mockSarData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="time" fontSize={12} />
+                <YAxis fontSize={12} />
+                <Line type="monotone" dataKey="level" stroke="#8884d8" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </aside>
     </div>
   );
 };
