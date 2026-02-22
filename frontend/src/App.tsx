@@ -6,8 +6,11 @@ import Map from 'ol/Map';
 import View from 'ol/View';
 import TileLayer from 'ol/layer/Tile';
 import OSM from 'ol/source/OSM';
-import { fromLonLat } from 'ol/proj';
-
+import { fromLonLat, transformExtent } from 'ol/proj';
+import VectorLayer from 'ol/layer/Vector';
+import VectorSource from 'ol/source/Vector';
+import GeoJSON from 'ol/format/GeoJSON';
+import { Style, Stroke, Fill } from 'ol/style';
 const mockNdviData = [
   { time: '00:00', value: 0.65 },
   { time: '04:00', value: 0.68 },
@@ -34,7 +37,32 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!mapElement.current) return;
 
+    // Cavite Coordinates
     const caviteCenter = fromLonLat([120.90, 14.28]);
+    
+    // Philippines Bounding Box [minLon, minLat, maxLon, maxLat]
+    const philippinesExtent = transformExtent(
+      [116.93, 4.59, 126.60, 21.28],
+      'EPSG:4326',
+      'EPSG:3857'
+    );
+
+    // Cavite GeoJSON Highlight Layer
+    const caviteLayer = new VectorLayer({
+      source: new VectorSource({
+        url: 'https://nominatim.openstreetmap.org/search?q=Cavite+Philippines&polygon_geojson=1&format=geojson',
+        format: new GeoJSON(),
+      }),
+      style: new Style({
+        fill: new Fill({
+          color: 'rgba(57, 255, 20, 0.2)', // Light neon green highlight
+        }),
+        stroke: new Stroke({
+          color: '#39ff14', // Neon green border
+          width: 2,
+        }),
+      }),
+    });
 
     mapRef.current = new Map({
       target: mapElement.current,
@@ -42,10 +70,13 @@ const App: React.FC = () => {
         new TileLayer({
           source: new OSM(),
         }),
+        caviteLayer,
       ],
       view: new View({
         center: caviteCenter,
-        zoom: 11.5,
+        zoom: 10,
+        minZoom: 5, // Prevent zooming out to see the world
+        extent: philippinesExtent, // Lock map panning to Philippines
       }),
     });
 
