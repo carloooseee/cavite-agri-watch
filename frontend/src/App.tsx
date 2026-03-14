@@ -37,6 +37,25 @@ const App: React.FC = () => {
   const mapRef = useRef<Map | null>(null);
   const [activeLayer, setActiveLayer] = useState<'NDVI' | 'SAR'>('NDVI');
   const [forecast, setForecast] = useState<ForecastData | null>(null);
+  const [syncState, setSyncState] = useState<{phase: string, status: string} | null>(null);
+
+  const handleSync = () => {
+    setSyncState({ phase: 'Extraction', status: 'Connecting...' });
+    const eventSource = new EventSource('http://127.0.0.1:8000/sync-data');
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      setSyncState(data);
+      if (data.phase === 'Completed' || data.phase === 'Error') {
+        eventSource.close();
+        setTimeout(() => setSyncState(null), 8000);
+      }
+    };
+    eventSource.onerror = () => {
+      setSyncState({ phase: 'Error', status: 'Connection failed' });
+      eventSource.close();
+      setTimeout(() => setSyncState(null), 8000);
+    };
+  };
 
   const handleForesee = async () => {
     // 1. Get the Prediction Data
@@ -88,9 +107,9 @@ const App: React.FC = () => {
         }),
       }),
     });
-
+    const cities_opacity = 1;
     const cities = [
-      { name: 'Dasmariñas', color: 'rgba(255, 99, 132, 0.4)' },
+      { name: 'Dasmariñas', color: 'rgba(255, 99, 132, {0.4})' },
       { name: 'Imus', color: 'rgba(54, 162, 235, 0.4)' },
       { name: 'General Trias', color: 'rgba(255, 206, 86, 0.4)' },
       { name: 'Bacoor', color: 'rgba(75, 192, 192, 0.4)' },
@@ -204,6 +223,57 @@ const App: React.FC = () => {
         <button className="nav-btn" onClick={handleForesee}>Foresee Future NDVI</button>
         <button className="nav-btn">Historical Archives</button>
         <button className="nav-btn">Alert Thresholds</button>
+        
+        <h3 style={{ marginTop: '20px', color: '#00FF88' }}>Autonomous Sync</h3>
+        <button 
+          className="nav-btn" 
+          style={{ borderColor: syncState ? '#aaa' : '#00FF88', color: syncState ? '#aaa' : '#00FF88' }} 
+          onClick={handleSync}
+          disabled={syncState !== null}
+        >
+          {syncState ? 'SYNC IN PROGRESS...' : 'INITIATE SYNC'}
+        </button>
+        
+        {syncState && (
+          <div className="sync-status" style={{ 
+            marginTop: '15px', 
+            padding: '12px', 
+            background: 'rgba(0, 255, 136, 0.05)', 
+            border: '1px solid rgba(0, 255, 136, 0.3)', 
+            borderRadius: '4px', 
+            fontFamily: 'monospace',
+            color: '#fff',
+            fontSize: '13px'
+          }}>
+            <div style={{ color: '#00FF88', marginBottom: '8px', fontSize: '11px', letterSpacing: '1px' }}>
+              [ PIPELINE ACTIVE ]
+            </div>
+            <div style={{ marginBottom: '4px' }}>
+              PHASE: <span style={{ color: '#00FF88', fontWeight: 'bold' }}>{syncState.phase.toUpperCase()}</span>
+            </div>
+            <div style={{ marginBottom: '10px' }}>
+              STATUS: <span style={{ color: '#aaa' }}>{syncState.status}</span>
+            </div>
+            <div style={{ 
+              height: '2px', 
+              background: 'rgba(255, 255, 255, 0.1)', 
+              width: '100%',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <div style={{ 
+                position: 'absolute',
+                top: 0, left: 0, height: '100%',
+                background: '#00FF88', 
+                boxShadow: '0 0 10px #00FF88',
+                width: syncState.phase === 'Completed' ? '100%' : 
+                       syncState.phase === 'Retraining' ? '75%' : 
+                       syncState.phase === 'Appending' ? '45%' : '15%',
+                transition: 'width 0.8s ease-out'
+              }}></div>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Center Map Area */}

@@ -54,5 +54,7 @@ def train_agri_model():
     else:
         print("CRITICAL ERROR: File is still 0KB. Check your disk space/permissions.")
 
+    return mae
+
 if __name__ == "__main__":
     train_agri_model()

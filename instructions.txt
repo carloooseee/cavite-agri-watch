@@ -1,9 +1,9 @@
 Terminal 1 (The Brain): * Navigate to backend/.
 
-    Activate the environment: .\venv\Scripts\activate.
+    Activate the environment: .\venv\Scripts\activate
 
-    Start the server: uvicorn main:app --reload.
+    Start the server: uvicorn main:app --reload
 
 Terminal 2 (The Face): * Navigate to frontend/.
 
-    Start the interface: npm run dev.
+    Start the interface: npm run dev
