@@ -10,4 +10,6 @@ Terminal 1 (The Brain): * Navigate to backend/.
 
 Terminal 2 (The Face): * Navigate to frontend/.
 
+    Install packages: npm install
+
     Start the interface: npm run dev

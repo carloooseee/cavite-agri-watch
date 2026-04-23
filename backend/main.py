@@ -179,3 +179,33 @@ def read_root():
         "phase": 3,
         "author": "Carlos - Lead Dev"
     }
+
+from fastapi import WebSocket, WebSocketDisconnect
+
+# Existing health mapping (You can later replace this with your ML prediction)
+HEALTH_DATABASE = {
+    "Indang": "Excellent",
+    "Silang": "Good",
+    "Naic": "Critical",
+    "Tanza": "Excellent"
+}
+
+@app.websocket("/ws/analytics")
+async def websocket_bridge(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            # Receive city name from React click
+            data = await websocket.receive_json()
+            city_name = data.get("name")
+            
+            # Lookup health
+            status = HEALTH_DATABASE.get(city_name, "Stable")
+            
+            # Push back to Dashboard
+            await websocket.send_json({
+                "status": status,
+                "location": city_name
+            })
+    except WebSocketDisconnect:
+        print("Dashboard disconnected")

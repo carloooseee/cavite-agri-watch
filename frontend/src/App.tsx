@@ -11,6 +11,8 @@ import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import GeoJSON from 'ol/format/GeoJSON';
 import { Style, Stroke, Fill, Text } from 'ol/style';
+import { Select } from 'ol/interaction'; // Added
+import { click } from 'ol/events/condition'; // Added
 import { AgriApi, type ForecastData } from './services/api';
 import XYZ from 'ol/source/XYZ';
 
@@ -35,9 +37,12 @@ const mockSarData = [
 const App: React.FC = () => {
   const mapElement = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<Map | null>(null);
+  const socket = useRef<WebSocket | null>(null); // Bridge Reference
+  
   const [activeLayer, setActiveLayer] = useState<'NDVI' | 'SAR'>('NDVI');
   const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [syncState, setSyncState] = useState<{phase: string, status: string} | null>(null);
+  const [healthStatus, setHealthStatus] = useState<string>("Select a Municipality"); // Bridge State
 
   const handleSync = () => {
     setSyncState({ phase: 'Extraction', status: 'Connecting...' });
@@ -58,58 +63,40 @@ const App: React.FC = () => {
   };
 
   const handleForesee = async () => {
-    // 1. Get the Prediction Data
     const data = await AgriApi.getPrediction();
     setForecast(data);
-
-    // 2. Get and Add the Neon Map Layer
     const tileUrl = await AgriApi.getMapLayer();
-    
     const ndviLayer = new TileLayer({
-        source: new XYZ({
-            url: tileUrl,
-        }),
-        className: 'ndvi-layer', // Useful for CSS styling later
+        source: new XYZ({ url: tileUrl }),
+        className: 'ndvi-layer',
         opacity: 0.8
     });
-
-    if (mapRef.current) {
-        mapRef.current.addLayer(ndviLayer);
-    }
+    if (mapRef.current) mapRef.current.addLayer(ndviLayer);
   };
 
   useEffect(() => {
     if (!mapElement.current) return;
 
-    // Cavite Coordinates
-    const caviteCenter = fromLonLat([120.90, 14.28]);
-    
-    // Philippines Bounding Box [minLon, minLat, maxLon, maxLat]
-    const philippinesExtent = transformExtent(
-      [116.93, 4.59, 126.60, 21.28],
-      'EPSG:4326',
-      'EPSG:3857'
-    );
+    // 1. Initialize Bridge (FastAPI Connection)
+    socket.current = new WebSocket("ws://127.0.0.1:8000/ws/analytics");
+    socket.current.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      setHealthStatus(data.status); 
+    };
 
-    // Cavite GeoJSON Highlight Layer
+    const caviteCenter = fromLonLat([120.90, 14.28]);
+    const philippinesExtent = transformExtent([116.93, 4.59, 126.60, 21.28], 'EPSG:4326', 'EPSG:3857');
+
     const caviteLayer = new VectorLayer({
-      source: new VectorSource({
-        url: '/geojson/cavite.geojson',
-        format: new GeoJSON(),
-      }),
+      source: new VectorSource({ url: '/geojson/cavite.geojson', format: new GeoJSON() }),
       style: new Style({
-        fill: new Fill({
-          color: 'rgba(0, 0, 0, 0.05)',
-        }),
-        stroke: new Stroke({
-          color: '#000',
-          width: 2,
-        }),
+        fill: new Fill({ color: 'rgba(0, 0, 0, 0.05)' }),
+        stroke: new Stroke({ color: '#000', width: 2 }),
       }),
     });
-    const cities_opacity = 1;
+
     const cities = [
-      { name: 'Dasmariñas', color: 'rgba(255, 99, 132, {0.4})' },
+      { name: 'Dasmariñas', color: 'rgba(255, 99, 132, 0.4)' },
       { name: 'Imus', color: 'rgba(54, 162, 235, 0.4)' },
       { name: 'General Trias', color: 'rgba(255, 206, 86, 0.4)' },
       { name: 'Bacoor', color: 'rgba(75, 192, 192, 0.4)' },
@@ -135,9 +122,7 @@ const App: React.FC = () => {
     mapRef.current = new Map({
       target: mapElement.current,
       layers: [
-        new TileLayer({
-          source: new OSM(),
-        }),
+        new TileLayer({ source: new OSM() }),
         caviteLayer,
       ],
       view: new View({
@@ -148,8 +133,34 @@ const App: React.FC = () => {
       }),
     });
 
+    // 2. Click Interaction (Select & Highlight)
+    const selectHighlight = new Select({
+      condition: click,
+      style: new Style({
+        fill: new Fill({ color: 'rgba(0, 255, 136, 0.4)' }),
+        stroke: new Stroke({ color: '#00FF88', width: 3 }),
+        text: new Text({
+          font: 'bold 14px Calibri,sans-serif',
+          fill: new Fill({ color: '#fff' }),
+          stroke: new Stroke({ color: '#000', width: 3 })
+        })
+      }),
+    });
+
+    mapRef.current.addInteraction(selectHighlight);
+
+    // 3. Bridge Trigger: Send click to FastAPI
+    selectHighlight.on('select', (e) => {
+      if (e.selected.length > 0) {
+        const feature = e.selected[0];
+        const cityName = feature.get('name'); 
+        if (socket.current?.readyState === WebSocket.OPEN) {
+          socket.current.send(JSON.stringify({ name: cityName }));
+        }
+      }
+    });
+
     const loadCitiesSequentially = async () => {
-      // Local files load much faster and avoid API limits.
       for (const city of cities) {
         try {
           const fileName = city.name.replace(/ /g, '_').toLowerCase();
@@ -157,9 +168,7 @@ const App: React.FC = () => {
           if (res.ok) {
             const data = await res.json();
             const source = new VectorSource({
-              features: new GeoJSON().readFeatures(data, {
-                  featureProjection: 'EPSG:3857'
-              }),
+              features: new GeoJSON().readFeatures(data, { featureProjection: 'EPSG:3857' }),
             });
             const layer = new VectorLayer({
               source: source,
@@ -185,15 +194,13 @@ const App: React.FC = () => {
     loadCitiesSequentially();
 
     return () => {
-      if (mapRef.current) {
-        mapRef.current.setTarget(undefined);
-      }
+      if (mapRef.current) mapRef.current.setTarget(undefined);
+      socket.current?.close();
     };
   }, []);
 
   return (
     <div className="app-container">
-      {/* Top Header */}
       <header className="top-header">
         <h2>Cavite Agri-Watch</h2>
         <div className="header-status">
@@ -203,21 +210,23 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Left Sidebar */}
       <nav className="sidebar">
+        {/* Real-time Health Label Window */}
+        <div className="health-card" style={{ 
+            background: 'rgba(0, 255, 136, 0.1)', 
+            padding: '15px', 
+            borderRadius: '4px', 
+            border: '1px solid #00FF88',
+            marginBottom: '20px',
+            textAlign: 'center'
+        }}>
+          <div style={{ color: '#00FF88', fontSize: '10px', letterSpacing: '2px', marginBottom: '5px' }}>HEALTH STATUS</div>
+          <h2 style={{ margin: 0, textTransform: 'uppercase', color: '#fff' }}>{healthStatus}</h2>
+        </div>
+
         <h3>Layers</h3>
-        <button 
-          className={`nav-btn ${activeLayer === 'NDVI' ? 'active' : ''}`} 
-          onClick={() => setActiveLayer('NDVI')}
-        >
-          NDVI Analysis
-        </button>
-        <button 
-          className={`nav-btn ${activeLayer === 'SAR' ? 'active' : ''}`} 
-          onClick={() => setActiveLayer('SAR')}
-        >
-          SAR Intel
-        </button>
+        <button className={`nav-btn ${activeLayer === 'NDVI' ? 'active' : ''}`} onClick={() => setActiveLayer('NDVI')}>NDVI Analysis</button>
+        <button className={`nav-btn ${activeLayer === 'SAR' ? 'active' : ''}`} onClick={() => setActiveLayer('SAR')}>SAR Intel</button>
 
         <h3 style={{ marginTop: '20px' }}>Controls</h3>
         <button className="nav-btn" onClick={handleForesee}>Foresee Future NDVI</button>
@@ -225,73 +234,33 @@ const App: React.FC = () => {
         <button className="nav-btn">Alert Thresholds</button>
         
         <h3 style={{ marginTop: '20px', color: '#00FF88' }}>Autonomous Sync</h3>
-        <button 
-          className="nav-btn" 
-          style={{ borderColor: syncState ? '#aaa' : '#00FF88', color: syncState ? '#aaa' : '#00FF88' }} 
-          onClick={handleSync}
-          disabled={syncState !== null}
-        >
+        <button className="nav-btn" style={{ borderColor: syncState ? '#aaa' : '#00FF88', color: syncState ? '#aaa' : '#00FF88' }} onClick={handleSync} disabled={syncState !== null}>
           {syncState ? 'SYNC IN PROGRESS...' : 'INITIATE SYNC'}
         </button>
         
         {syncState && (
-          <div className="sync-status" style={{ 
-            marginTop: '15px', 
-            padding: '12px', 
-            background: 'rgba(0, 255, 136, 0.05)', 
-            border: '1px solid rgba(0, 255, 136, 0.3)', 
-            borderRadius: '4px', 
-            fontFamily: 'monospace',
-            color: '#fff',
-            fontSize: '13px'
-          }}>
-            <div style={{ color: '#00FF88', marginBottom: '8px', fontSize: '11px', letterSpacing: '1px' }}>
-              [ PIPELINE ACTIVE ]
-            </div>
-            <div style={{ marginBottom: '4px' }}>
-              PHASE: <span style={{ color: '#00FF88', fontWeight: 'bold' }}>{syncState.phase.toUpperCase()}</span>
-            </div>
-            <div style={{ marginBottom: '10px' }}>
-              STATUS: <span style={{ color: '#aaa' }}>{syncState.status}</span>
-            </div>
-            <div style={{ 
-              height: '2px', 
-              background: 'rgba(255, 255, 255, 0.1)', 
-              width: '100%',
-              position: 'relative',
-              overflow: 'hidden'
-            }}>
-              <div style={{ 
-                position: 'absolute',
-                top: 0, left: 0, height: '100%',
-                background: '#00FF88', 
-                boxShadow: '0 0 10px #00FF88',
-                width: syncState.phase === 'Completed' ? '100%' : 
-                       syncState.phase === 'Retraining' ? '75%' : 
-                       syncState.phase === 'Appending' ? '45%' : '15%',
-                transition: 'width 0.8s ease-out'
-              }}></div>
+          <div className="sync-status">
+            <div style={{ color: '#00FF88', marginBottom: '8px', fontSize: '11px', letterSpacing: '1px' }}>[ PIPELINE ACTIVE ]</div>
+            <div style={{ marginBottom: '4px' }}>PHASE: <span style={{ color: '#00FF88', fontWeight: 'bold' }}>{syncState.phase.toUpperCase()}</span></div>
+            <div style={{ marginBottom: '10px' }}>STATUS: <span style={{ color: '#aaa' }}>{syncState.status}</span></div>
+            <div className="progress-bar-container">
+              <div className="progress-bar" style={{ width: syncState.phase === 'Completed' ? '100%' : syncState.phase === 'Retraining' ? '75%' : syncState.phase === 'Appending' ? '45%' : '15%' }}></div>
             </div>
           </div>
         )}
       </nav>
 
-      {/* Center Map Area */}
       <main className="main-section">
         <div ref={mapElement} className="map-container"></div>
       </main>
 
-      {/* Right Analytics Panel */}
       <aside className="analytics-panel">
         <h3>Live Analytics</h3>
-        
         {forecast && (
           <div className="data-card">
             <div>30-Day NDVI Forecast</div>
             <h2>{forecast.forecast_30_days.toFixed(2)}</h2>
-            <div>
-              Trend: {forecast.trend} | {forecast.accuracy_metric}
-            </div>
+            <div>Trend: {forecast.trend} | {forecast.accuracy_metric}</div>
           </div>
         )}
 
