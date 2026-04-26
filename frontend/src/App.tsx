@@ -35,9 +35,25 @@ const App: React.FC = () => {
   const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [syncState, setSyncState] = useState<{phase: string, status: string} | null>(null);
   
+  // Lab Mode States
+  const [isLabMode, setIsLabMode] = useState(false);
+  const [cvipData, setCvipData] = useState<any>(null);
+  
   // Real-time Bridge States
   const [healthStatus, setHealthStatus] = useState<string>("Awaiting Target");
   const [activeZone, setActiveZone] = useState<string>("Cavite Province");
+
+  const handleToggleLabMode = async () => {
+    if (!isLabMode && !cvipData) {
+      try {
+        const data = await AgriApi.getCVIPEvidence();
+        setCvipData(data);
+      } catch (err) {
+        console.error("Failed to load CVIP data", err);
+      }
+    }
+    setIsLabMode(!isLabMode);
+  };
 
   const handleSync = () => {
     setSyncState({ phase: 'Extraction', status: 'Connecting...' });
@@ -112,7 +128,8 @@ const App: React.FC = () => {
       { name: 'Tanza', color: 'rgba(123, 104, 238, 0.5)' },
       { name: 'Noveleta', color: 'rgba(255, 140, 0, 0.5)' },
       { name: 'Rosario', color: 'rgba(220, 20, 60, 0.5)' },
-      { name: 'Kawit', color: 'rgba(0, 191, 255, 0.5)' }
+      { name: 'Kawit', color: 'rgba(0, 191, 255, 0.5)' },
+      { name: 'Magallanes', color: 'rgba(255, 69, 0, 0.5)' }
     ];
 
     mapRef.current = new Map({
@@ -213,6 +230,9 @@ const App: React.FC = () => {
               <button onClick={handleSync} disabled={syncState !== null}>
                 {syncState ? 'Syncing...' : 'Start Data Sync'}
               </button>
+              <button onClick={handleToggleLabMode} style={{ marginTop: '10px', fontWeight: 'bold' }}>
+                {isLabMode ? 'Exit Lab Mode' : 'Enter Lab Mode'}
+              </button>
             </div>
 
             {syncState && (
@@ -225,8 +245,44 @@ const App: React.FC = () => {
         </nav>
 
         <main className="main-section">
-          <div ref={mapElement} className="map-container"></div>
-          <div className="active-zone-tag">ZONE: {activeZone}</div>
+          {isLabMode ? (
+            <div style={{ padding: '20px', height: '100%', overflowY: 'auto' }}>
+              <h2>CVIP Diagnostic Lab Mode</h2>
+              {cvipData ? (
+                <>
+                  <div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
+                    <div style={{ flex: 1, border: '1px solid #000', padding: '10px' }}>
+                      <h3>BEFORE: Raw Image</h3>
+                      {cvipData.before_image ? 
+                        <img src={`data:image/png;base64,${cvipData.before_image}`} alt="Before" style={{ width: '100%', border: '1px solid #ccc', marginTop: '10px' }} /> 
+                        : <p>Image not found. Run extraction first.</p>}
+                    </div>
+                    <div style={{ flex: 1, border: '1px solid #000', padding: '10px' }}>
+                      <h3>AFTER: Masked & Clipped</h3>
+                      {cvipData.after_image ? 
+                        <img src={`data:image/png;base64,${cvipData.after_image}`} alt="After" style={{ width: '100%', border: '1px solid #ccc', marginTop: '10px' }} />
+                        : <p>Image not found. Run extraction first.</p>}
+                    </div>
+                  </div>
+                  <div className="feature-box" style={{ marginTop: '20px', background: '#f9f9f9' }}>
+                    <h3>Technique Summary (Reduction Stats)</h3>
+                    <ul style={{ paddingLeft: '20px', marginTop: '10px', lineHeight: '1.6' }}>
+                      <li><strong>Temporal:</strong> {cvipData.metadata.temporal}</li>
+                      <li><strong>Spectral:</strong> {cvipData.metadata.spectral}</li>
+                      <li><strong>Spatial:</strong> {cvipData.metadata.spatial}</li>
+                    </ul>
+                  </div>
+                </>
+              ) : (
+                <p>Loading evidence from backend...</p>
+              )}
+            </div>
+          ) : (
+            <>
+              <div ref={mapElement} className="map-container"></div>
+              <div className="active-zone-tag">ZONE: {activeZone}</div>
+            </>
+          )}
         </main>
 
         <aside className="analytics-panel">

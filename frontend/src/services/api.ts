@@ -20,5 +20,11 @@ export const AgriApi = {
     getPrediction: async (): Promise<ForecastData> => {
         const response = await fetch(`${BASE_URL}/predict/ndvi`);
         return await response.json();
+    },
+
+    // Get CVIP Evidence and metadata
+    getCVIPEvidence: async () => {
+        const response = await fetch(`${BASE_URL}/cvip/evidence`);
+        return await response.json();
     }
 };

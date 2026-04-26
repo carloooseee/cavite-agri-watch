@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import json
 import asyncio
+import base64
 from datetime import datetime, timedelta
 from fastapi.responses import StreamingResponse
 from train_model import train_agri_model
@@ -166,6 +167,27 @@ async def sync_data():
             yield 'data: ' + json.dumps({"phase": "Error", "status": str(e)}) + '\n\n'
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+@app.get("/cvip/evidence")
+def get_cvip_evidence():
+    before_path = "data/cvip_output/before_after/BEFORE_raw_unmasked.png"
+    after_path = "data/cvip_output/before_after/AFTER_masked_clipped.png"
+    
+    def get_b64(path):
+        if not os.path.exists(path):
+            return None
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode('utf-8')
+            
+    return {
+        "before_image": get_b64(before_path),
+        "after_image": get_b64(after_path),
+        "metadata": {
+            "temporal": "30-day median composite",
+            "spectral": "12 to 4 bands (RGB + NIR)",
+            "spatial": "64x64 patch size"
+        }
+    }
 
 @app.get("/test-gee")
 def test_gee():
