@@ -1,9 +1,15 @@
 Terminal 1 (The Brain): * Navigate to backend/.
+    
+    Create Environment: python -m venv venv
 
     Activate the environment: .\venv\Scripts\activate
+
+    install requirements: pip install -r .\requirements.txt
 
     Start the server: uvicorn main:app --reload
 
 Terminal 2 (The Face): * Navigate to frontend/.
+
+    Install packages: npm install
 
     Start the interface: npm run dev
