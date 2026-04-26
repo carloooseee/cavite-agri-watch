@@ -22,7 +22,7 @@ body {
   gap: 20px;
 }
 
-.sidebar, .analytics-panel {
+.sidebar {
   width: 300px;
   display: flex;
   flex-direction: column;

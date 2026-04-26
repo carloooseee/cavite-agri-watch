@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import './App.css';
 import 'ol/ol.css';
 import Map from 'ol/Map';
@@ -15,16 +14,6 @@ import { Select } from 'ol/interaction';
 import { click } from 'ol/events/condition';
 import { AgriApi, type ForecastData } from './services/api';
 import XYZ from 'ol/source/XYZ';
-
-const mockNdviData = [
-  { time: '00:00', value: 0.65 }, { time: '04:00', value: 0.68 }, { time: '08:00', value: 0.72 },
-  { time: '12:00', value: 0.81 }, { time: '16:00', value: 0.75 }, { time: '20:00', value: 0.69 },
-];
-
-const mockSarData = [
-  { time: '00:00', level: 12 }, { time: '04:00', level: 14 }, { time: '08:00', level: 18 },
-  { time: '12:00', level: 45 }, { time: '16:00', level: 38 }, { time: '20:00', level: 22 },
-];
 
 const App: React.FC = () => {
   const mapElement = useRef<HTMLDivElement | null>(null);
@@ -225,7 +214,6 @@ const App: React.FC = () => {
             <h3>Controls</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
               <button onClick={() => setActiveLayer('NDVI')}>NDVI Layer</button>
-              <button onClick={() => setActiveLayer('SAR')}>SAR Layer</button>
               <button onClick={handleForesee}>Run Forecast</button>
               <button onClick={handleSync} disabled={syncState !== null}>
                 {syncState ? 'Syncing...' : 'Start Data Sync'}
@@ -242,6 +230,15 @@ const App: React.FC = () => {
               </div>
             )}
           </div>
+
+          {forecast && (
+            <div className="feature-box">
+              <h3>AI Forecast (30-Day)</h3>
+              <p>Value: <strong>{forecast.forecast_30_days.toFixed(2)}</strong></p>
+              <p>Trend: {forecast.trend}</p>
+              <p><small>{forecast.accuracy_metric}</small></p>
+            </div>
+          )}
         </nav>
 
         <main className="main-section">
@@ -284,49 +281,6 @@ const App: React.FC = () => {
             </>
           )}
         </main>
-
-        <aside className="analytics-panel">
-          <div className="feature-box">
-            <h3>Buildings Detected</h3>
-            <p style={{ fontSize: '24px' }}>1,402</p>
-          </div>
-
-          {forecast && (
-            <div className="feature-box">
-              <h3>30-Day Forecast</h3>
-              <p>Value: {forecast.forecast_30_days.toFixed(2)}</p>
-              <p>Trend: {forecast.trend}</p>
-            </div>
-          )}
-
-          <div className="feature-box">
-            <h3>NDVI Trend</h3>
-            <div className="chart-container">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={mockNdviData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="time" />
-                  <YAxis domain={[0.6, 0.9]} />
-                  <Area type="monotone" dataKey="value" stroke="#000" fill="#ccc" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="feature-box">
-            <h3>Soil Moisture</h3>
-            <div className="chart-container">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={mockSarData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="time" />
-                  <YAxis />
-                  <Line type="monotone" dataKey="level" stroke="#000" />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </aside>
       </div>
     </div>
   );
