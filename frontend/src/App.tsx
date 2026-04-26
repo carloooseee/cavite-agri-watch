@@ -109,7 +109,7 @@ const App: React.FC = () => {
     });
     const cities_opacity = 1;
     const cities = [
-      { name: 'Dasmariñas', color: 'rgba(255, 99, 132, {0.4})' },
+      { name: 'Dasmariñas', color: 'rgba(255, 99, 132, 0.4)' },
       { name: 'Imus', color: 'rgba(54, 162, 235, 0.4)' },
       { name: 'General Trias', color: 'rgba(255, 206, 86, 0.4)' },
       { name: 'Bacoor', color: 'rgba(75, 192, 192, 0.4)' },
@@ -224,10 +224,10 @@ const App: React.FC = () => {
         <button className="nav-btn">Historical Archives</button>
         <button className="nav-btn">Alert Thresholds</button>
         
-        <h3 style={{ marginTop: '20px', color: '#00FF88' }}>Autonomous Sync</h3>
+        <h3 style={{ marginTop: '20px', color: '#004324ff' }}>Autonomous Sync</h3>
         <button 
           className="nav-btn" 
-          style={{ borderColor: syncState ? '#aaa' : '#00FF88', color: syncState ? '#aaa' : '#00FF88' }} 
+          style={{ borderColor: syncState ? '#aaa' : '#00321bff', color: syncState ? '#aaa' : '#00371dff' }} 
           onClick={handleSync}
           disabled={syncState !== null}
         >
@@ -245,11 +245,11 @@ const App: React.FC = () => {
             color: '#fff',
             fontSize: '13px'
           }}>
-            <div style={{ color: '#00FF88', marginBottom: '8px', fontSize: '11px', letterSpacing: '1px' }}>
+            <div style={{ color: '#004323ff', marginBottom: '8px', fontSize: '11px', letterSpacing: '1px' }}>
               [ PIPELINE ACTIVE ]
             </div>
             <div style={{ marginBottom: '4px' }}>
-              PHASE: <span style={{ color: '#00FF88', fontWeight: 'bold' }}>{syncState.phase.toUpperCase()}</span>
+              PHASE: <span style={{ color: '#00502bff', fontWeight: 'bold' }}>{syncState.phase.toUpperCase()}</span>
             </div>
             <div style={{ marginBottom: '10px' }}>
               STATUS: <span style={{ color: '#aaa' }}>{syncState.status}</span>
@@ -264,8 +264,8 @@ const App: React.FC = () => {
               <div style={{ 
                 position: 'absolute',
                 top: 0, left: 0, height: '100%',
-                background: '#00FF88', 
-                boxShadow: '0 0 10px #00FF88',
+                background: '#006435ff', 
+                boxShadow: '0 0 10px #002c17ff',
                 width: syncState.phase === 'Completed' ? '100%' : 
                        syncState.phase === 'Retraining' ? '75%' : 
                        syncState.phase === 'Appending' ? '45%' : '15%',
