@@ -191,137 +191,87 @@ const App: React.FC = () => {
 
   return (
     <div className="app-container">
-      {/* HEADER */}
       <header className="top-header">
-        <h2>TERRA-SYNC V2</h2>
-        <div className="header-status">
-          <span style={{ color: '#00FF88' }}>● SYSTEM ONLINE</span>
-          <span>FastAPI Bridge</span>
-        </div>
+        <h1>Cavite Agri-Watch (Functional Prototype)</h1>
+        <div>SYSTEM STATUS: ONLINE | Bridge: Active</div>
       </header>
 
-      {/* LEFT SIDEBAR */}
-      <nav className="sidebar">
-        <div className="health-card">
-          <div className="health-title">SOIL HEALTH CLASSIFICATION</div>
-          <h2>{healthStatus}</h2>
-          <p className="health-desc">
-            Agricultural composition in <strong>{activeZone}</strong> analyzed via satellite telemetry.
-          </p>
-        </div>
+      <div className="main-layout">
+        <nav className="sidebar">
+          <div className="feature-box">
+            <h3>Health Status</h3>
+            <p>Zone: {activeZone}</p>
+            <p><strong>Status: {healthStatus}</strong></p>
+          </div>
 
-        <div className="data-card controls-card">
-          <h3 style={{ marginTop: '5px' }}>Layers & Controls</h3>
-          <button className={`nav-btn ${activeLayer === 'NDVI' ? 'active' : ''}`} onClick={() => setActiveLayer('NDVI')}>NDVI Analysis</button>
-          <button className={`nav-btn ${activeLayer === 'SAR' ? 'active' : ''}`} onClick={() => setActiveLayer('SAR')}>SAR Intel</button>
-          <button className="nav-btn" onClick={handleForesee}>Foresee Future NDVI</button>
-          <button className="nav-btn">Historical Archives</button>
-          <button className="nav-btn">Alert Thresholds</button>
-          
-          <h3 style={{ marginTop: '20px', color: '#004324ff' }}>Autonomous Sync</h3>
-          <button 
-            className="nav-btn sync-btn" 
-            style={{ borderColor: syncState ? '#aaa' : '#00321bff', color: syncState ? '#aaa' : '#00371dff' }} 
-            onClick={handleSync}
-            disabled={syncState !== null}
-          >
-            {syncState ? 'SYNC IN PROGRESS...' : 'INITIATE SYNC'}
-          </button>
-          
-          {syncState && (
-            <div className="sync-status" style={{ 
-              marginTop: '15px', 
-              padding: '12px', 
-              background: 'rgba(0, 255, 136, 0.05)', 
-              border: '1px solid rgba(0, 255, 136, 0.3)', 
-              borderRadius: '4px', 
-              fontFamily: 'monospace',
-              color: '#fff',
-              fontSize: '13px'
-            }}>
-              <div style={{ color: '#004323ff', marginBottom: '8px', fontSize: '11px', letterSpacing: '1px' }}>
-                [ PIPELINE ACTIVE ]
+          <div className="feature-box">
+            <h3>Controls</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <button onClick={() => setActiveLayer('NDVI')}>NDVI Layer</button>
+              <button onClick={() => setActiveLayer('SAR')}>SAR Layer</button>
+              <button onClick={handleForesee}>Run Forecast</button>
+              <button onClick={handleSync} disabled={syncState !== null}>
+                {syncState ? 'Syncing...' : 'Start Data Sync'}
+              </button>
+            </div>
+
+            {syncState && (
+              <div className="sync-status">
+                <p>Pipeline: {syncState.phase}</p>
+                <p>Status: {syncState.status}</p>
               </div>
-              <div style={{ marginBottom: '4px' }}>
-                PHASE: <span style={{ color: '#00FF88', fontWeight: 'bold' }}>{syncState.phase.toUpperCase()}</span>
-              </div>
-              <div style={{ marginBottom: '10px' }}>
-                STATUS: <span style={{ color: '#aaa' }}>{syncState.status}</span>
-              </div>
-              <div style={{ 
-                height: '2px', 
-                background: 'rgba(255, 255, 255, 0.1)', 
-                width: '100%',
-                position: 'relative',
-                overflow: 'hidden'
-              }}>
-                <div style={{ 
-                  position: 'absolute',
-                  top: 0, left: 0, height: '100%',
-                  background: '#006435ff', 
-                  boxShadow: '0 0 10px #002c17ff',
-                  width: syncState.phase === 'Completed' ? '100%' : 
-                         syncState.phase === 'Retraining' ? '75%' : 
-                         syncState.phase === 'Appending' ? '45%' : '15%',
-                  transition: 'width 0.8s ease-out'
-                }}></div>
-              </div>
+            )}
+          </div>
+        </nav>
+
+        <main className="main-section">
+          <div ref={mapElement} className="map-container"></div>
+          <div className="active-zone-tag">ZONE: {activeZone}</div>
+        </main>
+
+        <aside className="analytics-panel">
+          <div className="feature-box">
+            <h3>Buildings Detected</h3>
+            <p style={{ fontSize: '24px' }}>1,402</p>
+          </div>
+
+          {forecast && (
+            <div className="feature-box">
+              <h3>30-Day Forecast</h3>
+              <p>Value: {forecast.forecast_30_days.toFixed(2)}</p>
+              <p>Trend: {forecast.trend}</p>
             </div>
           )}
-        </div>
-      </nav>
 
-      {/* CENTER MAP */}
-      <main className="main-section">
-        <div ref={mapElement} className="map-container"></div>
-        <div className="active-zone-tag">ACTIVE ZONE: {activeZone}</div>
-      </main>
-
-      {/* RIGHT ANALYTICS */}
-      <aside className="analytics-panel">
-        <div className="data-card mini">
-          <small>DETECTED BUILDINGS</small>
-          <h2 className="metric-large">1,402</h2>
-        </div>
-
-        {forecast && (
-          <div className="data-card">
-            <small>30-DAY FORECAST</small>
-            <h2>{forecast.forecast_30_days.toFixed(2)}</h2>
-            <small>{forecast.trend}</small>
+          <div className="feature-box">
+            <h3>NDVI Trend</h3>
+            <div className="chart-container">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={mockNdviData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="time" />
+                  <YAxis domain={[0.6, 0.9]} />
+                  <Area type="monotone" dataKey="value" stroke="#000" fill="#ccc" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-        )}
 
-        <div className="data-card">
-          <small>VEGETATION INDEX (NDVI)</small>
-          <h2>0.72</h2>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={mockNdviData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="time" fontSize={10} axisLine={false} tickLine={false} />
-                <YAxis fontSize={10} domain={[0.6, 0.9]} axisLine={false} tickLine={false} />
-                <Area type="monotone" dataKey="value" stroke="#00FF88" fill="rgba(0,255,136,0.1)" strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="feature-box">
+            <h3>Soil Moisture</h3>
+            <div className="chart-container">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={mockSarData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="time" />
+                  <YAxis />
+                  <Line type="monotone" dataKey="level" stroke="#000" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-        </div>
-
-        <div className="data-card">
-          <small>SOIL MOISTURE</small>
-          <h2>38%</h2>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={mockSarData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="time" fontSize={10} axisLine={false} tickLine={false} />
-                <YAxis fontSize={10} axisLine={false} tickLine={false} />
-                <Line type="monotone" dataKey="level" stroke="#0f172a" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </aside>
+        </aside>
+      </div>
     </div>
   );
 };

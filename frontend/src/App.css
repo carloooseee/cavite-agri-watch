@@ -1,120 +1,72 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
-
-:root {
-  --neon-green: #00FF88;
-  --bg-main: #f8fafc;
-  --card-bg: #ffffff;
-  --text-dark: #0f172a;
-  --text-muted: #64748b;
-  --border-color: #e2e8f0;
-}
-
+/* Basic reset and functional layout only */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  background-color: var(--bg-main);
-  font-family: 'Inter', sans-serif;
-  color: var(--text-dark);
+  font-family: sans-serif;
+  padding: 10px;
 }
 
 .app-container {
-  display: grid;
-  grid-template-columns: 340px 1fr 340px;
-  grid-template-rows: 60px 1fr;
-  height: 100vh;
-  width: 100vw;
-  gap: 20px;
-  padding: 20px;
-}
-
-/* Header */
-.top-header {
-  grid-column: 1 / -1;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.top-header h2 { font-weight: 900; letter-spacing: -1px; }
-.header-status { display: flex; gap: 20px; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
+.top-header {
+  border-bottom: 1px solid #000;
+  padding-bottom: 10px;
+}
 
-/* Panels */
+.main-layout {
+  display: flex;
+  gap: 20px;
+}
+
 .sidebar, .analytics-panel {
-  display: flex; flex-direction: column; gap: 15px; overflow-y: auto;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.sidebar::-webkit-scrollbar, .analytics-panel::-webkit-scrollbar { display: none; }
-
-/* Cards */
-.data-card {
-  background: var(--card-bg);
-  padding: 24px;
-  border-radius: 20px;
-  border: 1px solid var(--border-color);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-}
-
-.data-card small { color: var(--text-muted); font-weight: 600; letter-spacing: 1px; font-size: 0.75rem; }
-.data-card h2 { font-size: 2.5rem; font-weight: 800; margin: 10px 0 0 0; letter-spacing: -1.5px; }
-.metric-large { font-size: 3rem !important; color: var(--text-dark); }
-
-/* Health Classification Specific */
-.health-card {
-  background: var(--card-bg);
-  padding: 30px 24px;
-  border-radius: 20px;
-  border: 1px solid var(--border-color);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
-  position: relative;
-  overflow: hidden;
-}
-
-.health-card::before {
-  content: ''; position: absolute; left: 0; top: 0; width: 6px; height: 100%;
-  background: var(--neon-green);
-}
-
-.health-title { color: var(--text-muted); font-weight: 600; font-size: 0.75rem; letter-spacing: 1px; margin-bottom: 15px; }
-.health-card h2 { font-size: 3rem; font-weight: 900; letter-spacing: -2px; color: var(--text-dark); margin: 0 0 15px 0; text-transform: uppercase; }
-.health-desc { font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; }
-
-/* Buttons & Controls */
-.controls-card { display: flex; flex-direction: column; gap: 10px; }
-.controls-card h3 { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
-
-.nav-btn {
-  padding: 14px 16px; text-align: left; background: var(--bg-main);
-  border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer;
-  font-weight: 600; font-family: 'Inter', sans-serif; transition: all 0.2s; color: var(--text-dark);
-}
-
-.nav-btn:hover { border-color: var(--neon-green); background: white; }
-.nav-btn.active { background: var(--text-dark); color: white; border-color: var(--text-dark); }
-.sync-btn { border-color: var(--neon-green); color: #00b35f; margin-top: 10px; text-align: center; }
-
-/* Map Area */
 .main-section {
-  position: relative; border-radius: 24px; overflow: hidden;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); border: 1px solid var(--border-color);
+  flex: 1;
+  height: 600px;
+  border: 1px solid #000;
+  position: relative;
 }
 
 .map-container {
-  width: 100%; height: 100%;
-  filter: grayscale(0.8) contrast(1.1) brightness(1.05);
+  width: 100%;
+  height: 100%;
+}
+
+.feature-box {
+  border: 1px solid #000;
+  padding: 10px;
+}
+
+button {
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.chart-container {
+  height: 150px;
+  margin-top: 10px;
+}
+
+.sync-status {
+  background: #eee;
+  padding: 10px;
+  border: 1px solid #999;
 }
 
 .active-zone-tag {
-  position: absolute; bottom: 20px; left: 20px;
-  background: white; padding: 10px 20px; border-radius: 30px;
-  font-weight: 600; font-size: 0.85rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  border: 1px solid var(--border-color); pointer-events: none;
-}
-
-/* Charts */
-.chart-container { height: 140px; width: 100%; margin-top: 15px; }
-
-/* Sync Status Box */
-.sync-status {
-  margin-top: 10px; padding: 12px; background: #0f172a; border-radius: 8px;
-  font-family: monospace; color: white; font-size: 0.75rem; border: 1px solid var(--text-muted);
-}
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: white;
+  border: 1px solid #000;
+  padding: 5px;
+}
