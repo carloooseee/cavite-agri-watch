@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import './App.css';
 import 'ol/ol.css';
 import Map from 'ol/Map';
@@ -15,16 +14,6 @@ import { Select } from 'ol/interaction';
 import { click } from 'ol/events/condition';
 import { AgriApi, type ForecastData } from './services/api';
 import XYZ from 'ol/source/XYZ';
-
-const mockNdviData = [
-  { time: '00:00', value: 0.65 }, { time: '04:00', value: 0.68 }, { time: '08:00', value: 0.72 },
-  { time: '12:00', value: 0.81 }, { time: '16:00', value: 0.75 }, { time: '20:00', value: 0.69 },
-];
-
-const mockSarData = [
-  { time: '00:00', level: 12 }, { time: '04:00', level: 14 }, { time: '08:00', level: 18 },
-  { time: '12:00', level: 45 }, { time: '16:00', level: 38 }, { time: '20:00', level: 22 },
-];
 
 const App: React.FC = () => {
   const mapElement = useRef<HTMLDivElement | null>(null);
@@ -173,7 +162,13 @@ const App: React.FC = () => {
 
     loadCitiesSequentially();
 
+    const handleResize = () => {
+      if (mapRef.current) mapRef.current.updateSize();
+    };
+    window.addEventListener('resize', handleResize);
+
     return () => {
+      window.removeEventListener('resize', handleResize);
       if (mapRef.current) mapRef.current.setTarget(undefined);
       socket.current?.close();
     };
@@ -220,56 +215,21 @@ const App: React.FC = () => {
       </nav>
 
       {/* CENTER MAP */}
-      <main className="main-section">
+      <main className={`main-section ${!forecast ? 'main-section--wide' : ''}`}>
         <div ref={mapElement} className="map-container"></div>
         <div className="active-zone-tag">ACTIVE ZONE: {activeZone}</div>
       </main>
 
       {/* RIGHT ANALYTICS */}
-      <aside className="analytics-panel">
-        <div className="data-card mini">
-          <small>DETECTED BUILDINGS</small>
-          <h2 className="metric-large">1,402</h2>
-        </div>
-
-        {forecast && (
+      {forecast && (
+        <aside className="analytics-panel">
           <div className="data-card">
             <small>30-DAY FORECAST</small>
             <h2>{forecast.forecast_30_days.toFixed(2)}</h2>
             <small>{forecast.trend}</small>
           </div>
-        )}
-
-        <div className="data-card">
-          <small>VEGETATION INDEX (NDVI)</small>
-          <h2>0.72</h2>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={mockNdviData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="time" fontSize={10} axisLine={false} tickLine={false} />
-                <YAxis fontSize={10} domain={[0.6, 0.9]} axisLine={false} tickLine={false} />
-                <Area type="monotone" dataKey="value" stroke="#00FF88" fill="rgba(0,255,136,0.1)" strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="data-card">
-          <small>SOIL MOISTURE</small>
-          <h2>38%</h2>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={mockSarData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="time" fontSize={10} axisLine={false} tickLine={false} />
-                <YAxis fontSize={10} axisLine={false} tickLine={false} />
-                <Line type="monotone" dataKey="level" stroke="#0f172a" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </aside>
+        </aside>
+      )}
     </div>
   );
 };
