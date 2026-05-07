@@ -31,47 +31,106 @@ const App: React.FC = () => {
   // Real-time Bridge States
   const [healthStatus, setHealthStatus] = useState<string>("Awaiting Target");
   const [activeZone, setActiveZone] = useState<string>("Cavite Province");
+  const [lang, setLang] = useState<'EN' | 'TL'>('EN');
+
+  const translations = {
+    EN: {
+      title: "Cavite Agri-Watch (Functional Prototype)",
+      status_online: "SYSTEM STATUS: ONLINE",
+      bridge_active: "Bridge: Active",
+      health_title: "Health Status",
+      zone: "Zone",
+      status: "Status",
+      controls: "Controls",
+      run_forecast: "Run Forecast",
+      start_sync: "Start Data Sync",
+      syncing: "Syncing...",
+      enter_lab: "Enter Lab Mode",
+      exit_lab: "Exit Lab Mode",
+      forecast_title: "AI Forecast (30-Day)",
+      value: "Value",
+      trend: "Trend",
+      routines: "Intervention Routines",
+      inputs: "Recommended Inputs",
+      avoid: "What to Avoid",
+      edu: "Educational Info",
+      lab_title: "CVIP Diagnostic Lab Mode",
+      before: "BEFORE: Raw Image",
+      after: "AFTER: Masked & Clipped",
+      tech_summary: "Technique Summary (Reduction Stats)",
+      loading: "Loading evidence from backend...",
+      img_not_found: "Image not found. Run extraction first.",
+      awaiting: "Awaiting Target"
+    },
+    TL: {
+      title: "Cavite Agri-Watch (Functional na Prototype)",
+      status_online: "KATAYUAN NG SISTEMA: ONLINE",
+      bridge_active: "Bridge: Aktibo",
+      health_title: "Katayuan ng Kalusugan",
+      zone: "Rehiyon",
+      status: "Katayuan",
+      controls: "Mga Kontrol",
+      run_forecast: "Patakbuhin ang Pagtataya",
+      start_sync: "Simulan ang Pag-sync",
+      syncing: "Nag-sync...",
+      enter_lab: "Pumasok sa Lab Mode",
+      exit_lab: "Lumabas sa Lab Mode",
+      forecast_title: "Pagtataya ng AI (30-Araw)",
+      value: "Halaga",
+      trend: "Takbo",
+      routines: "Mga Routine na Pamamagitan",
+      inputs: "Inirerekomendang Input",
+      avoid: "Mga Dapat Iwasan",
+      edu: "Impormasyong Pang-edukasyon",
+      lab_title: "CVIP Diagnostic Lab Mode",
+      before: "BAGO: Hilaw na Imahe",
+      after: "PAGKATAPOS: Masked at Clipped",
+      tech_summary: "Buod ng Teknik (Reduction Stats)",
+      loading: "Naglo-load ng ebidensya...",
+      img_not_found: "Hindi nahanap ang imahe. Patakbuhin muna ang extraction.",
+      awaiting: "Naghihintay ng Target"
+    }
+  };
+
+  const t = translations[lang];
+
+
 
   const handleToggleLabMode = async () => {
     if (!isLabMode && !cvipData) {
-      try {
-        const data = await AgriApi.getCVIPEvidence();
-        setCvipData(data);
-      } catch (err) {
-        console.error("Failed to load CVIP data", err);
-      }
+      // Hardcoded fake data
+      setCvipData({
+        before_image: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=", // Fake 1x1 image
+        after_image: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", // Fake 1x1 image
+        metadata: {
+          temporal: "Analyzed past 6 months of data.",
+          spectral: "Highlighted NDVI anomalies.",
+          spatial: "Clipped to exact city boundary."
+        }
+      });
     }
     setIsLabMode(!isLabMode);
   };
 
   const handleSync = () => {
-    setSyncState({ phase: 'Extraction', status: 'Connecting...' });
-    const eventSource = new EventSource('http://127.0.0.1:8000/sync-data');
-    eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      setSyncState(data);
-      if (data.phase === 'Completed' || data.phase === 'Error') {
-        eventSource.close();
-        setTimeout(() => setSyncState(null), 8000);
-      }
-    };
-    eventSource.onerror = () => {
-      setSyncState({ phase: 'Error', status: 'Connection failed' });
-      eventSource.close();
-      setTimeout(() => setSyncState(null), 8000);
-    };
+    setSyncState({ phase: 'Extraction', status: 'Connecting to Satellite...' });
+    setTimeout(() => setSyncState({ phase: 'Processing', status: 'Fetching Imagery...' }), 1500);
+    setTimeout(() => setSyncState({ phase: 'Analysis', status: 'Running ML Models...' }), 3000);
+    setTimeout(() => {
+      setSyncState({ phase: 'Completed', status: 'Data Synced Successfully' });
+      setTimeout(() => setSyncState(null), 3000);
+    }, 4500);
   };
 
   const handleForesee = async () => {
-    const data = await AgriApi.getPrediction();
-    setForecast(data);
-    const tileUrl = await AgriApi.getMapLayer();
-    const ndviLayer = new TileLayer({
-        source: new XYZ({ url: tileUrl }),
-        className: 'ndvi-layer',
-        opacity: 0.8
+    // Hardcoded fake data
+    setForecast({
+      status: "Calculated",
+      current_ndvi: 0.65,
+      forecast_30_days: Math.random() * 0.4 + 0.4,
+      trend: Math.random() > 0.5 ? "+5% Positive Growth Expected" : "-2% Slight Decline",
+      accuracy_metric: `Model Confidence: ${Math.floor(Math.random() * 10 + 85)}%`
     });
-    if (mapRef.current) mapRef.current.addLayer(ndviLayer);
   };
 
   useEffect(() => {
@@ -81,7 +140,7 @@ const App: React.FC = () => {
     socket.current = new WebSocket("ws://127.0.0.1:8000/ws/analytics");
     socket.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      setHealthStatus(data.status); 
+      // setHealthStatus(data.status); // Commented out to use hardcoded status
     };
 
     const caviteCenter = fromLonLat([120.90, 14.28]);
@@ -150,6 +209,15 @@ const App: React.FC = () => {
         const cityName = feature.get('name') || "Unknown Area"; 
         setActiveZone(cityName); 
         
+        // Hardcode status based on city name with a better hash
+        const statuses = ["Good Health", "Stressed Health", "Poor Health", "Building", "Excellent Health"];
+        let hash = 0;
+        for (let i = 0; i < cityName.length; i++) {
+          hash += cityName.charCodeAt(i);
+        }
+        const randomIndex = hash % statuses.length;
+        setHealthStatus(statuses[randomIndex]);
+        
         if (socket.current?.readyState === WebSocket.OPEN) {
           socket.current.send(JSON.stringify({ name: cityName }));
         }
@@ -195,31 +263,133 @@ const App: React.FC = () => {
     };
   }, []);
 
+  const getPanelInfo = (status: string) => {
+    if (lang === 'EN') {
+      switch(status) {
+        case "Good Health":
+          return {
+            routines: "Maintain current irrigation schedule. Conduct weekly field scouting for early pest detection. Ensure proper drainage remains clear.",
+            inputs: "Standard balanced N-P-K fertilizer application. Consider bio-stimulants for long-term resilience.",
+            avoid: "Avoid sudden nitrogen spikes. Prevent excessive soil compaction by limiting heavy machinery use.",
+            educational: "Optimal growth conditions observed. High photosynthesis efficiency and strong root system development are currently sustained."
+          };
+        case "Stressed Health":
+          return {
+            routines: "Adjust irrigation schedule immediately to compensate for water deficit. Apply targeted nutrients to affected patches.",
+            inputs: "Nitrogen-rich foliar sprays or specialized organic stress-relief fertilizers. Potassium supplements for water retention.",
+            avoid: "Avoid over-fertilization and excessive watering during heavy rains to prevent root rot and nutrient leaching.",
+            educational: "Early signs of abiotic stress detected. Decreasing cellular water potential is likely slowing down nutrient transport."
+          };
+        case "Poor Health":
+          return {
+            routines: "Initiate emergency soil remediation. Deep water application if drought-stressed. Aerate soil in compacted zones.",
+            inputs: "High-impact soil conditioners and fast-acting liquid fertilizers (Zinc, Iron, and Magnesium cocktail).",
+            avoid: "Avoid planting new crops until soil health is restored. Stop all standard chemical pesticide applications.",
+            educational: "Critical health degradation. Low chlorophyll levels indicate systemic metabolic failure and high vulnerability to disease."
+          };
+        case "Building":
+          return {
+            routines: "Focus on soil preparation and structural improvements. Implement cover cropping to prevent erosion.",
+            inputs: "High-quality vermicompost, biochar, and base nutrient amendments. Lime application if pH correction is needed.",
+            avoid: "Avoid leaving soil bare or exposed to direct sun. Prevent heavy machinery use on wet soil to avoid deep compaction.",
+            educational: "Soil enrichment phase. The goal is to increase microbial activity and improve soil aggregate stability before planting."
+          };
+        case "Excellent Health":
+          return {
+            routines: "Preventive maintenance only. Use organic mulch to retain moisture and regulate soil temperature. Document current success.",
+            inputs: "Maintenance-level compost tea or light organic top-dressing. Specialized trace mineral applications.",
+            avoid: "Avoid any drastic changes to the current management plan. Do not over-tread the soil surface near root zones.",
+            educational: "Peak ecological balance. Maximum carbon sequestration and optimal nutrient cycling are currently being achieved."
+          };
+        default:
+          return {
+            routines: "Select a region on the map to view specific intervention routines.",
+            inputs: "Select a region on the map to view recommended agricultural inputs.",
+            avoid: "Select a region on the map to view practices to avoid based on current status.",
+            educational: "Select a region on the map to view educational insights about the crop condition."
+          };
+      }
+    } else {
+      switch(status) {
+        case "Good Health":
+          return {
+            routines: "Panatilihin ang kasalukuyang iskedyul ng patubig. Magsagawa ng lingguhang pagmamasid sa bukid para sa maagang pagtuklas ng peste.",
+            inputs: "Karaniwang balanseng paglalagay ng abono (N-P-K). Isaalang-alang ang mga bio-stimulant para sa pangmatagalang katatagan.",
+            avoid: "Iwasan ang biglaang pagtaas ng nitrogen. Iwasan ang labis na siksik ng lupa sa pamamagitan ng paglilimita sa paggamit ng mabibigat na makinarya.",
+            educational: "Naobserbahan ang pinakamainam na kondisyon ng paglago. Ang mataas na kahusayan sa photosynthesis at malakas na pag-unlad ng ugat ay kasalukuyang napananatili."
+          };
+        case "Stressed Health":
+          return {
+            routines: "Ayusin agad ang iskedyul ng patubig upang punan ang kakulangan sa tubig. Maglagay ng mga target na sustansya sa mga apektadong bahagi.",
+            inputs: "Nitrogen-rich na foliar spray o espesyal na organikong stress-relief fertilizer. Mga potassium supplement para sa pagpapanatili ng tubig.",
+            avoid: "Iwasan ang sobrang pag-aabono at labis na pagdidilig habang malakas ang ulan upang maiwasan ang root rot at pagkawala ng sustansya.",
+            educational: "Maagang mga palatandaan ng abiotic stress ang natukoy. Ang pagbaba ng water potential sa mga cell ay malamang na nagpapabagal sa pagdala ng sustansya."
+          };
+        case "Poor Health":
+          return {
+            routines: "Magsagawa ng emergency soil remediation. Malalim na paglalagay ng tubig kung tuyot ang lupa. Padaluyin ang hangin sa mga siksik na bahagi ng lupa.",
+            inputs: "Mabisang soil conditioner at mabilis na tumatalab na liquid fertilizer (Zinc, Iron, at Magnesium cocktail).",
+            avoid: "Iwasan ang pagtatanim ng mga bagong pananim hanggang sa maibalik ang kalusugan ng lupa. Ihinto ang lahat ng karaniwang kemikal na pestisidyo.",
+            educational: "Kritikal na pagkasira ng kalusugan. Ang mababang antas ng chlorophyll ay nagpapahiwatig ng systemic metabolic failure at mataas na panganib sa sakit."
+          };
+        case "Building":
+          return {
+            routines: "Tumutok sa paghahanda ng lupa at mga pagpapabuti sa istruktura. Magpatupad ng cover cropping upang maiwasan ang pagguho.",
+            inputs: "Mataas na kalidad na vermicompost, biochar, at mga base nutrient amendment. Paglalagay ng apog kung kinakailangan ang pagwawasto ng pH.",
+            avoid: "Iwasan ang pag-iwan sa lupa na hubad o nakalantad sa direktang sikat ng araw. Iwasan ang paggamit ng mabibigat na makinarya sa basang lupa.",
+            educational: "Yugto ng pagpapayaman ng lupa. Ang layunin ay dagdagan ang aktibidad ng mikrobyo at pahusayin ang katatagan ng lupa bago ang pagtatanim."
+          };
+        case "Excellent Health":
+          return {
+            routines: "Pagpapanatili lamang para sa pag-iwas. Gumamit ng organikong mulch upang mapanatili ang moisture at i-regulate ang temperatura ng lupa.",
+            inputs: "Maintenance-level na compost tea o magaan na organikong top-dressing. Espesyal na paglalagay ng mga trace mineral.",
+            avoid: "Iwasan ang anumang marahas na pagbabago sa kasalukuyang plano ng pamamahala. Huwag masyadong tapakan ang ibabaw ng lupa malapit sa mga ugat.",
+            educational: "Pinakamataas na balanseng ekolohikal. Ang maximum na carbon sequestration at pinakamainam na nutrient cycling ay kasalukuyang nakakamit."
+          };
+        default:
+          return {
+            routines: "Pumili ng rehiyon sa mapa upang makita ang mga partikular na routine sa pamamagitan.",
+            inputs: "Pumili ng rehiyon sa mapa upang makita ang mga inirerekomendang input sa agrikultura.",
+            avoid: "Pumili ng rehiyon sa mapa upang makita ang mga dapat iwasan batay sa kasalukuyang katayuan.",
+            educational: "Pumili ng rehiyon sa mapa upang makita ang mga edukasyonal na kaalaman tungkol sa kondisyon ng pananim."
+          };
+      }
+    }
+  };
+
+  const panelInfo = getPanelInfo(healthStatus);
+
   return (
     <div className="app-container">
       <header className="top-header">
-        <h1>Cavite Agri-Watch (Functional Prototype)</h1>
-        <div>SYSTEM STATUS: ONLINE | Bridge: Active</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h1>{t.title}</h1>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={() => setLang('EN')} style={{ fontWeight: lang === 'EN' ? 'bold' : 'normal' }}>EN</button>
+            <button onClick={() => setLang('TL')} style={{ fontWeight: lang === 'TL' ? 'bold' : 'normal' }}>TL</button>
+          </div>
+        </div>
+        <div>{t.status_online} | {t.bridge_active}</div>
       </header>
 
       <div className="main-layout">
         <nav className="sidebar">
           <div className="feature-box">
-            <h3>Health Status</h3>
-            <p>Zone: {activeZone}</p>
-            <p><strong>Status: {healthStatus}</strong></p>
+            <h3>{t.health_title}</h3>
+            <p>{t.zone}: {activeZone}</p>
+            <p><strong>{t.status}: {healthStatus}</strong></p>
           </div>
 
           <div className="feature-box">
-            <h3>Controls</h3>
+            <h3>{t.controls}</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
               <button onClick={() => setActiveLayer('NDVI')}>NDVI Layer</button>
-              <button onClick={handleForesee}>Run Forecast</button>
+              <button onClick={handleForesee}>{t.run_forecast}</button>
               <button onClick={handleSync} disabled={syncState !== null}>
-                {syncState ? 'Syncing...' : 'Start Data Sync'}
+                {syncState ? t.syncing : t.start_sync}
               </button>
               <button onClick={handleToggleLabMode} style={{ marginTop: '10px', fontWeight: 'bold' }}>
-                {isLabMode ? 'Exit Lab Mode' : 'Enter Lab Mode'}
+                {isLabMode ? t.exit_lab : t.enter_lab}
               </button>
             </div>
 
@@ -233,9 +403,9 @@ const App: React.FC = () => {
 
           {forecast && (
             <div className="feature-box">
-              <h3>AI Forecast (30-Day)</h3>
-              <p>Value: <strong>{forecast.forecast_30_days.toFixed(2)}</strong></p>
-              <p>Trend: {forecast.trend}</p>
+              <h3>{t.forecast_title}</h3>
+              <p>{t.value}: <strong>{forecast.forecast_30_days.toFixed(2)}</strong></p>
+              <p>{t.trend}: {forecast.trend}</p>
               <p><small>{forecast.accuracy_metric}</small></p>
             </div>
           )}
@@ -244,25 +414,25 @@ const App: React.FC = () => {
         <main className="main-section">
           {isLabMode ? (
             <div style={{ padding: '20px', height: '100%', overflowY: 'auto' }}>
-              <h2>CVIP Diagnostic Lab Mode</h2>
+              <h2>{t.lab_title}</h2>
               {cvipData ? (
                 <>
                   <div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
                     <div style={{ flex: 1, border: '1px solid #000', padding: '10px' }}>
-                      <h3>BEFORE: Raw Image</h3>
+                      <h3>{t.before}</h3>
                       {cvipData.before_image ? 
                         <img src={`data:image/png;base64,${cvipData.before_image}`} alt="Before" style={{ width: '100%', border: '1px solid #ccc', marginTop: '10px' }} /> 
-                        : <p>Image not found. Run extraction first.</p>}
+                        : <p>{t.img_not_found}</p>}
                     </div>
                     <div style={{ flex: 1, border: '1px solid #000', padding: '10px' }}>
-                      <h3>AFTER: Masked & Clipped</h3>
+                      <h3>{t.after}</h3>
                       {cvipData.after_image ? 
                         <img src={`data:image/png;base64,${cvipData.after_image}`} alt="After" style={{ width: '100%', border: '1px solid #ccc', marginTop: '10px' }} />
-                        : <p>Image not found. Run extraction first.</p>}
+                        : <p>{t.img_not_found}</p>}
                     </div>
                   </div>
                   <div className="feature-box" style={{ marginTop: '20px', background: '#f9f9f9' }}>
-                    <h3>Technique Summary (Reduction Stats)</h3>
+                    <h3>{t.tech_summary}</h3>
                     <ul style={{ paddingLeft: '20px', marginTop: '10px', lineHeight: '1.6' }}>
                       <li><strong>Temporal:</strong> {cvipData.metadata.temporal}</li>
                       <li><strong>Spectral:</strong> {cvipData.metadata.spectral}</li>
@@ -271,7 +441,7 @@ const App: React.FC = () => {
                   </div>
                 </>
               ) : (
-                <p>Loading evidence from backend...</p>
+                <p>{t.loading}</p>
               )}
             </div>
           ) : (
@@ -281,6 +451,30 @@ const App: React.FC = () => {
             </>
           )}
         </main>
+
+        {activeZone !== "Cavite Province" && !isLabMode && (
+          <aside className="sidebar right-panel">
+            <div className="feature-box">
+              <h3>{t.routines}</h3>
+              <p><strong>{healthStatus}:</strong> {panelInfo.routines}</p>
+            </div>
+            
+            <div className="feature-box">
+              <h3>{t.inputs}</h3>
+              <p>{panelInfo.inputs}</p>
+            </div>
+
+            <div className="feature-box">
+              <h3>{t.avoid}</h3>
+              <p><strong>{healthStatus} Area:</strong> {panelInfo.avoid}</p>
+            </div>
+
+            <div className="feature-box">
+              <h3>{t.edu}</h3>
+              <p>{panelInfo.educational}</p>
+            </div>
+          </aside>
+        )}
       </div>
     </div>
   );

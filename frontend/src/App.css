@@ -29,6 +29,11 @@ body {
   gap: 20px;
 }
 
+.right-panel {
+  overflow-y: auto;
+  max-height: 600px;
+}
+
 .main-section {
   flex: 1;
   height: 600px;
