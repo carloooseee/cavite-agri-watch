@@ -533,7 +533,7 @@ const App: React.FC = () => {
               onClick={handleDownloadReport}
               style={{ width: '100%', marginTop: '10px' }}
             >
-              📄 {t.download_report}
+             {t.download_report}
             </button>
           </aside>
         )}
