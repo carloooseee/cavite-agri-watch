@@ -419,12 +419,12 @@ const App: React.FC = () => {
       <header className="top-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h1>{t.title}</h1>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button onClick={() => setLang('EN')} style={{ fontWeight: lang === 'EN' ? 'bold' : 'normal' }}>EN</button>
-            <button onClick={() => setLang('TL')} style={{ fontWeight: lang === 'TL' ? 'bold' : 'normal' }}>TL</button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => setLang('EN')} className={lang === 'EN' ? 'btn-primary' : ''}>EN</button>
+            <button onClick={() => setLang('TL')} className={lang === 'TL' ? 'btn-primary' : ''}>TL</button>
           </div>
         </div>
-        <div>{t.status_online} | {t.bridge_active}</div>
+        <div style={{ color: '#444746', fontSize: '0.9rem', fontWeight: 500 }}>{t.status_online} | {t.bridge_active}</div>
       </header>
 
       <div className="main-layout">
@@ -437,13 +437,13 @@ const App: React.FC = () => {
 
           <div className="feature-box">
             <h3>{t.controls}</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button onClick={() => setActiveLayer('NDVI')}>NDVI Layer</button>
               <button onClick={handleForesee}>{t.run_forecast}</button>
               <button onClick={handleSync} disabled={syncState !== null}>
                 {syncState ? t.syncing : t.start_sync}
               </button>
-              <button onClick={handleToggleLabMode} style={{ marginTop: '10px', fontWeight: 'bold' }}>
+              <button onClick={handleToggleLabMode} className="btn-primary" style={{ marginTop: '8px' }}>
                 {isLabMode ? t.exit_lab : t.enter_lab}
               </button>
             </div>
@@ -468,25 +468,25 @@ const App: React.FC = () => {
 
         <main className="main-section">
           {isLabMode ? (
-            <div style={{ padding: '20px', height: '100%', overflowY: 'auto' }}>
+            <div style={{ padding: '24px', height: '100%', overflowY: 'auto', background: 'white', borderRadius: '24px', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
               <h2>{t.lab_title}</h2>
               {cvipData ? (
                 <>
                   <div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
-                    <div style={{ flex: 1, border: '1px solid #000', padding: '10px' }}>
-                      <h3>{t.before}</h3>
+                    <div style={{ flex: 1, background: '#f8fafc', borderRadius: '16px', padding: '16px' }}>
+                      <h3 style={{ fontSize: '1rem', color: '#444746' }}>{t.before}</h3>
                       {cvipData.before_image ? 
-                        <img src={`data:image/png;base64,${cvipData.before_image}`} alt="Before" style={{ width: '100%', border: '1px solid #ccc', marginTop: '10px' }} /> 
+                        <img src={`data:image/png;base64,${cvipData.before_image}`} alt="Before" style={{ width: '100%', borderRadius: '8px', marginTop: '10px' }} /> 
                         : <p>{t.img_not_found}</p>}
                     </div>
-                    <div style={{ flex: 1, border: '1px solid #000', padding: '10px' }}>
-                      <h3>{t.after}</h3>
+                    <div style={{ flex: 1, background: '#f8fafc', borderRadius: '16px', padding: '16px' }}>
+                      <h3 style={{ fontSize: '1rem', color: '#444746' }}>{t.after}</h3>
                       {cvipData.after_image ? 
-                        <img src={`data:image/png;base64,${cvipData.after_image}`} alt="After" style={{ width: '100%', border: '1px solid #ccc', marginTop: '10px' }} />
+                        <img src={`data:image/png;base64,${cvipData.after_image}`} alt="After" style={{ width: '100%', borderRadius: '8px', marginTop: '10px' }} />
                         : <p>{t.img_not_found}</p>}
                     </div>
                   </div>
-                  <div className="feature-box" style={{ marginTop: '20px', background: '#f9f9f9' }}>
+                  <div className="feature-box" style={{ marginTop: '24px', background: '#f8fafc', boxShadow: 'none' }}>
                     <h3>{t.tech_summary}</h3>
                     <ul style={{ paddingLeft: '20px', marginTop: '10px', lineHeight: '1.6' }}>
                       <li><strong>Temporal:</strong> {cvipData.metadata.temporal}</li>
@@ -531,9 +531,10 @@ const App: React.FC = () => {
 
             <button 
               onClick={handleDownloadReport}
-              style={{ width: '100%', marginTop: '10px' }}
+              className="btn-primary"
+              style={{ width: '100%', marginTop: 'auto', padding: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
             >
-             {t.download_report}
+              📄 {t.download_report}
             </button>
           </aside>
         )}
