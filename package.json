@@ -1,0 +1,17 @@
+{
+  "name": "cavite-agri-watch",
+  "version": "1.0.0",
+  "description": "Unified entry point for Cavite Agri-Watch",
+  "scripts": {
+    "setup:frontend": "npm install --prefix frontend",
+    "setup:backend": "cd backend && python -m venv venv && .\\venv\\Scripts\\activate && pip install -r requirements.txt",
+    "setup": "npm run setup:frontend && npm run setup:backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:backend": "cd backend && .\\venv\\Scripts\\activate && uvicorn main:app --reload",
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "start": "npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

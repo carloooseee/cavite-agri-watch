@@ -1,0 +1,3 @@
+@echo off
+echo Starting Cavite Agri-Watch (Frontend + Backend)...
+npm run dev
