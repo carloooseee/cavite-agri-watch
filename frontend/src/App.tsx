@@ -189,6 +189,12 @@ const App: React.FC = () => {
     currentY = drawSection(t.avoid, flatten(panelInfo.avoid), currentY);
     currentY = drawSection(t.edu, flatten(panelInfo.educational), currentY);
     
+    // Add Trend Summary to PDF
+    if (panelInfo.chart && panelInfo.chart.length > 0) {
+      const avg = (panelInfo.chart.reduce((acc: number, curr: any) => acc + curr.ndvi, 0) / panelInfo.chart.length).toFixed(2);
+      currentY = drawSection("Diagnostic Trend Analysis", `Average NDVI for the period: ${avg}\nStatus: ${healthStatus}`, currentY);
+    }
+
     // Forecast if available
     if (forecast) {
       doc.setFillColor(240, 249, 255);
@@ -617,6 +623,13 @@ const App: React.FC = () => {
                     <Line type="monotone" dataKey="ndvi" stroke="#000" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
+              </div>
+              <div style={{ marginTop: '10px', fontSize: '0.8rem', borderTop: '1px dashed #ccc', paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>Health Scale:</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '25px' }}>1.0</span> <span>- Peak Health</span></div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '25px' }}>0.6</span> <span>- Good Health</span></div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '25px' }}>0.4</span> <span>- Stressed</span></div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '25px' }}>0.2</span> <span>- Low/Soil</span></div>
               </div>
             </div>
 
