@@ -199,10 +199,40 @@ const App: React.FC = () => {
     currentY = drawSection(t.avoid, flatten(panelInfo.avoid), currentY);
     currentY = drawSection(t.edu, flatten(panelInfo.educational), currentY);
     
-    // Add Trend Summary to PDF
+    // Add Trend Summary & Visual Chart to PDF
     if (panelInfo.chart && panelInfo.chart.length > 0) {
       const avg = (panelInfo.chart.reduce((acc: number, curr: any) => acc + curr.ndvi, 0) / panelInfo.chart.length).toFixed(2);
-      currentY = drawSection("Diagnostic Trend Analysis", `Average NDVI for the period: ${avg}\nStatus: ${healthStatus}`, currentY);
+      currentY = drawSection("Diagnostic Trend Analysis", `Average NDVI: ${avg}\nHealth Status: ${healthStatus}`, currentY);
+
+      // Draw Chart in PDF
+      const chartX = 15;
+      const chartY = currentY;
+      const chartW = 180;
+      const chartH = 40;
+
+      // Chart Background & Grid
+      doc.setDrawColor(230, 230, 230);
+      doc.line(chartX, chartY, chartX + chartW, chartY); // Top
+      doc.line(chartX, chartY + chartH, chartX + chartW, chartY + chartH); // Bottom
+      doc.setFontSize(8);
+      doc.text("1.0", chartX - 7, chartY + 3);
+      doc.text("0.0", chartX - 7, chartY + chartH);
+
+      // Draw Trend Line
+      const points = panelInfo.chart.map((d: any, i: number) => ({
+        x: chartX + (i * (chartW / (panelInfo.chart.length - 1))),
+        y: chartY + chartH - (d.ndvi * chartH)
+      }));
+
+      doc.setDrawColor(getStatusColor(healthStatus));
+      doc.setLineWidth(0.8);
+      for (let i = 0; i < points.length - 1; i++) {
+        doc.line(points[i].x, points[i].y, points[i+1].x, points[i+1].y);
+        doc.circle(points[i].x, points[i].y, 0.5, 'F');
+      }
+      doc.circle(points[points.length-1].x, points[points.length-1].y, 0.5, 'F');
+      
+      currentY += chartH + 20;
     }
 
     // Forecast if available
