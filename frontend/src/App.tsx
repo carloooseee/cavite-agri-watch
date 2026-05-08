@@ -126,6 +126,16 @@ const App: React.FC = () => {
     }, 4500);
   };
 
+  const getStatusColor = (status: string) => {
+    switch(status) {
+      case "Excellent Health": return "#008000"; // Green
+      case "Good Health": return "#2e8b57";      // SeaGreen
+      case "Stressed Health": return "#d2691e";  // Chocolate/Orange
+      case "Poor Health": return "#b22222";      // Firebrick/Red
+      default: return "#000000";
+    }
+  };
+
   const handleForesee = async () => {
     // Hardcoded fake data
     setForecast({
@@ -512,7 +522,7 @@ const App: React.FC = () => {
           <div className="feature-box">
             <h3>{t.health_title}</h3>
             <p>{t.zone}: {activeZone}</p>
-            <p><strong>{t.status}: {healthStatus}</strong></p>
+            <p><strong>{t.status}: <span style={{ color: getStatusColor(healthStatus) }}>{healthStatus}</span></strong></p>
           </div>
 
           <div className="feature-box">
@@ -540,7 +550,7 @@ const App: React.FC = () => {
             <div className="feature-box">
               <h3>{t.forecast_title}</h3>
               <p>{t.value}: <strong>{forecast.forecast_30_days.toFixed(2)}</strong></p>
-              <p>{t.trend}: {forecast.trend}</p>
+              <p>{t.trend}: <span style={{ color: forecast.trend.includes('+') ? '#008000' : '#b22222', fontWeight: 'bold' }}>{forecast.trend}</span></p>
               <p><small>{forecast.accuracy_metric}</small></p>
             </div>
           )}
@@ -591,7 +601,7 @@ const App: React.FC = () => {
           <aside className="sidebar right-panel">
             <div className="feature-box">
               <h3>{t.routines}</h3>
-              <p><em>{healthStatus}</em></p>
+              <p><em style={{ color: getStatusColor(healthStatus), fontWeight: 'bold' }}>{healthStatus}</em></p>
               <p>{panelInfo.routines.desc}</p>
               <ul style={{ paddingLeft: '20px' }}>
                 {panelInfo.routines.bullets.map((b, i) => <li key={i}>{b}</li>)}
@@ -620,7 +630,7 @@ const App: React.FC = () => {
                     <XAxis dataKey="day" hide />
                     <YAxis hide domain={[0, 1]} />
                     <Tooltip />
-                    <Line type="monotone" dataKey="ndvi" stroke="#000" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="ndvi" stroke={getStatusColor(healthStatus)} strokeWidth={3} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
