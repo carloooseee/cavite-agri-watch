@@ -63,7 +63,14 @@ const App: React.FC = () => {
       loading: "Loading evidence from backend...",
       img_not_found: "Image not found. Run extraction first.",
       awaiting: "Awaiting Target",
-      download_report: "Download PDF Report"
+      download_report: "Download PDF Report",
+      spectral_title: "Spectral Metrics",
+      stress_levels: {
+        none: "No Stress",
+        mild: "Mild Stress",
+        mod: "Moderate Stress",
+        sev: "Severe Stress"
+      }
     },
     TL: {
       title: "Cavite Agri-Watch (Functional na Prototype)",
@@ -92,7 +99,14 @@ const App: React.FC = () => {
       loading: "Naglo-load ng ebidensya...",
       img_not_found: "Hindi nahanap ang imahe. Patakbuhin muna ang extraction.",
       awaiting: "Naghihintay ng Target",
-      download_report: "I-download ang PDF Report"
+      download_report: "I-download ang PDF Report",
+      spectral_title: "Spectral Metrics",
+      stress_levels: {
+        none: "Walang Stress",
+        mild: "Mild na Stress",
+        mod: "Katamtamang Stress",
+        sev: "Malalang Stress"
+      }
     }
   };
 
@@ -128,22 +142,28 @@ const App: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch(status) {
-      case "Excellent Health": return "#008000"; // Green
-      case "Good Health": return "#2e8b57";      // SeaGreen
-      case "Stressed Health": return "#d2691e";  // Chocolate/Orange
-      case "Poor Health": return "#b22222";      // Firebrick/Red
-      default: return "#000000";
+      case "No Stress": return "#00FF88";       // Neon Green
+      case "Mild Stress": return "#FFFF00";     // Yellow
+      case "Moderate Stress": return "#FF8800"; // Orange
+      case "Severe Stress": return "#FF0000";   // Red
+      default: return "#A0AEC0";
     }
   };
 
   const handleForesee = async () => {
-    // Hardcoded fake data
+    // Generate mock values for all indices mentioned in the paper
+    const ndvi = 0.4 + Math.random() * 0.4;
     setForecast({
       status: "Calculated",
       current_ndvi: 0.65,
-      forecast_30_days: Math.random() * 0.4 + 0.4,
-      trend: Math.random() > 0.5 ? "+5% Positive Growth Expected" : "-2% Slight Decline",
-      accuracy_metric: `Model Confidence: ${Math.floor(Math.random() * 10 + 85)}%`
+      forecast_30_days: ndvi,
+      trend: ndvi > 0.6 ? "+5% Positive Growth Expected" : "-2% Slight Decline",
+      accuracy_metric: `Model Confidence: ${Math.floor(Math.random() * 10 + 85)}%`,
+      evi: ndvi * 0.8,
+      ndwi: 0.3 + Math.random() * 0.2,
+      lswi: 0.2 + Math.random() * 0.3,
+      ndre: 0.15 + Math.random() * 0.1,
+      softmax_prob: 0.85 + Math.random() * 0.1
     });
   };
 
@@ -329,8 +349,8 @@ const App: React.FC = () => {
         const cityName = feature.get('name') || "Unknown Area"; 
         setActiveZone(cityName); 
         
-        // Hardcode status based on city name with a better hash
-        const statuses = ["Good Health", "Stressed Health", "Poor Health", "Excellent Health"];
+        // Align with paper's 4-tier classification prediction logic
+        const statuses = ["No Stress", "Mild Stress", "Moderate Stress", "Severe Stress"];
         let hash = 0;
         for (let i = 0; i < cityName.length; i++) {
           hash += cityName.charCodeAt(i);
@@ -397,93 +417,61 @@ const App: React.FC = () => {
 
     if (lang === 'EN') {
       switch(status) {
-        case "Good Health":
+        case "No Stress":
           return {
             routines: {
               desc: "Current crop health is stable. Focus on optimization and monitoring.",
-              bullets: [
-                "Maintain irrigation schedule",
-                "Conduct weekly scouting",
-                "Keep drainage clear"
-              ]
+              bullets: ["Maintain irrigation schedule", "Conduct weekly scouting", "Keep drainage clear"]
             },
             inputs: {
               desc: "Standard nutrition plan is sufficient for current growth stage.",
-              bullets: [
-                "Balanced N-P-K fertilizer",
-                "Organic bio-stimulants",
-                "Trace mineral spray"
-              ]
+              bullets: ["Balanced N-P-K fertilizer", "Organic bio-stimulants", "Trace mineral spray"]
             },
             avoid: "Sudden nitrogen spikes and soil compaction.",
             educational: "High photosynthesis efficiency observed.",
             chart: mockTrendData
           };
-        case "Stressed Health":
+        case "Mild Stress":
           return {
             routines: {
-              desc: "Plants are showing signs of environmental stress. Immediate adjustment needed.",
-              bullets: [
-                "Adjust irrigation timing",
-                "Apply nutrient recovery spray",
-                "Check for early pest signs"
-              ]
+              desc: "Plants are showing early signs of environmental stress. Minor adjustment needed.",
+              bullets: ["Adjust irrigation timing", "Apply nutrient recovery spray", "Check for early pest signs"]
             },
             inputs: {
               desc: "Focus on recovery and resilience building inputs.",
-              bullets: [
-                "Nitrogen-rich foliar sprays",
-                "Potassium for water retention",
-                "Organic stress-relief agents"
-              ]
+              bullets: ["Nitrogen-rich foliar sprays", "Potassium for water retention", "Organic agents"]
             },
             avoid: "Over-fertilization during stress periods.",
             educational: "Early abiotic stress detected in cellular data.",
-            chart: mockTrendData.map(d => ({ ...d, ndvi: d.ndvi - 0.1 }))
+            chart: mockTrendData.map(d => ({ ...d, ndvi: d.ndvi - 0.05 }))
           };
-        case "Poor Health":
+        case "Moderate Stress":
           return {
             routines: {
-              desc: "Critical health degradation. Emergency remediation required.",
-              bullets: [
-                "Initiate soil aeration",
-                "Deep water application",
-                "Remove diseased tissue"
-              ]
+              desc: "Stress levels are significant. Remediation required to prevent loss.",
+              bullets: ["Increase water frequency", "Soil moisture check", "Disease assessment"]
             },
             inputs: {
-              desc: "High-impact soil conditioners and fast-acting nutrients.",
-              bullets: [
-                "Liquid Zinc/Iron cocktail",
-                "Magnesium supplements",
-                "Soil pH adjusters"
-              ]
+              desc: "High-impact fast-acting nutrients.",
+              bullets: ["Liquid Zinc/Iron cocktail", "Magnesium supplements", "Soil pH adjusters"]
             },
             avoid: "Planting new crops; stop chemical pesticides.",
             educational: "Low chlorophyll levels indicate metabolic failure.",
-            chart: mockTrendData.map(d => ({ ...d, ndvi: d.ndvi - 0.25 }))
+            chart: mockTrendData.map(d => ({ ...d, ndvi: d.ndvi - 0.15 }))
           };
-        case "Excellent Health":
+        case "Severe Stress":
           return {
             routines: {
-              desc: "Peak performance achieved. Maintain ecological balance.",
-              bullets: [
-                "Preventive maintenance only",
-                "Apply organic mulch",
-                "Document success metrics"
-              ]
+              desc: "Critical damage detected. Emergency intervention necessary.",
+              bullets: ["Emergency irrigation", "Deep soil aeration", "Crop salvation protocols"]
             },
             inputs: {
-              desc: "Maintenance-level compost and light organic dressing.",
-              bullets: [
-                "Compost tea",
-                "Light organic top-dressing",
-                "Beneficial microbes"
-              ]
+              desc: "Intensive recovery nutrients.",
+              bullets: ["High-dose amino acids", "Seaweed extract", "Chelated minerals"]
             },
-            avoid: "Drastic changes to management plans.",
-            educational: "Maximum carbon sequestration achieved.",
-            chart: mockTrendData.map(d => ({ ...d, ndvi: d.ndvi + 0.1 }))
+            avoid: "All mechanical operations.",
+            educational: "Severe moisture deficit in LSWI data.",
+            chart: mockTrendData.map(d => ({ ...d, ndvi: d.ndvi - 0.3 }))
           };
         default:
           return {
@@ -581,7 +569,10 @@ const App: React.FC = () => {
               <h3>{t.forecast_title}</h3>
               <p>{t.value}: <strong>{forecast.forecast_30_days.toFixed(2)}</strong></p>
               <p>{t.trend}: <span style={{ color: forecast.trend.includes('+') ? '#008000' : '#b22222', fontWeight: 'bold' }}>{forecast.trend}</span></p>
-              <p><small>{forecast.accuracy_metric}</small></p>
+              <div className="forecast-meta">
+                <p><small>CNN Softmax Prob: <strong>{((forecast.softmax_prob || 0) * 100).toFixed(1)}%</strong></small></p>
+                <p><small>{forecast.accuracy_metric}</small></p>
+              </div>
             </div>
           )}
         </nav>
@@ -629,6 +620,17 @@ const App: React.FC = () => {
 
         {activeZone !== "Cavite Province" && !isLabMode && (
           <aside className="sidebar right-panel">
+            <div className="feature-box">
+              <h3>{t.spectral_title}</h3>
+              <div className="spectral-grid">
+                <div className="spectral-item">NDVI: <strong>{forecast?.current_ndvi.toFixed(2) || '0.00'}</strong></div>
+                <div className="spectral-item">EVI: <strong>{forecast?.evi?.toFixed(2) || '0.00'}</strong></div>
+                <div className="spectral-item">NDWI: <strong>{forecast?.ndwi?.toFixed(2) || '0.00'}</strong></div>
+                <div className="spectral-item">LSWI: <strong>{forecast?.lswi?.toFixed(2) || '0.00'}</strong></div>
+                <div className="spectral-item">NDRE: <strong>{forecast?.ndre?.toFixed(2) || '0.00'}</strong></div>
+              </div>
+            </div>
+
             <div className="feature-box">
               <h3>{t.routines}</h3>
               <p><em style={{ color: getStatusColor(healthStatus), fontWeight: 'bold' }}>{healthStatus}</em></p>

@@ -6,6 +6,12 @@ export interface ForecastData {
     forecast_30_days: number;
     trend: string;
     accuracy_metric: string;
+    // New metrics from paper
+    evi?: number;
+    ndwi?: number;
+    lswi?: number;
+    ndre?: number;
+    softmax_prob?: number;
 }
 
 export const AgriApi = {

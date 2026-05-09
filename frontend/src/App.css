@@ -133,3 +133,22 @@ button:hover {
   border: 1px solid #000;
   padding: 10px;
 }
+
+.spectral-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 5px;
+}
+
+.spectral-item {
+  border: 1px solid #eee;
+  padding: 4px 8px;
+  background: #fafafa;
+}
+
+.forecast-meta {
+  margin-top: 10px;
+  border-top: 1px dashed #ccc;
+  padding-top: 8px;
+}
