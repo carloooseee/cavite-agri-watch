@@ -153,21 +153,22 @@ const App: React.FC = () => {
     }
   };
 
+  const [isForecasting, setIsForecasting] = useState(false);
   const handleForesee = async () => {
-    // Generate mock values for all indices mentioned in the paper
-    const ndvi = 0.4 + Math.random() * 0.4;
-    setForecast({
-      status: "Calculated",
-      current_ndvi: 0.65,
-      forecast_30_days: ndvi,
-      trend: ndvi > 0.6 ? "+5% Positive Growth Expected" : "-2% Slight Decline",
-      accuracy_metric: `Model Confidence: ${Math.floor(Math.random() * 10 + 85)}%`,
-      evi: ndvi * 0.8,
-      ndwi: 0.3 + Math.random() * 0.2,
-      lswi: 0.2 + Math.random() * 0.3,
-      ndre: 0.15 + Math.random() * 0.1,
-      softmax_prob: 0.85 + Math.random() * 0.1
-    });
+    setIsForecasting(true);
+    try {
+      const data = await AgriApi.getPrediction(activeZone);
+      if (data && !data.hasOwnProperty('error')) {
+        setForecast(data);
+        if (data.classification) {
+          setHealthStatus(data.classification);
+        }
+      }
+    } catch (err) {
+      console.error("Forecasting failed:", err);
+    } finally {
+      setIsForecasting(false);
+    }
   };
 
   const handleDownloadReport = () => {
@@ -624,7 +625,9 @@ const App: React.FC = () => {
           <div className="feature-box">
             <h3>{t.controls}</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <button onClick={handleForesee}>{t.run_forecast}</button>
+              <button onClick={handleForesee} disabled={isForecasting}>
+                {isForecasting ? '⏳ Foreseeing...' : t.run_forecast}
+              </button>
 
               {/* NDVI Zone button — only shows when a municipality is selected */}
               {activeZone !== 'Cavite Province' && (
@@ -664,7 +667,8 @@ const App: React.FC = () => {
 
           {forecast && (
             <div className="feature-box">
-              <h3>{t.forecast_title}</h3>
+              <h3 style={{ borderBottom: '1px solid #eee', paddingBottom: '5px', marginBottom: '10px' }}>{t.forecast_title}</h3>
+              <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '8px' }}>Target: <strong>{forecast.city || activeZone}</strong></p>
               <p>{t.value}: <strong>{forecast.forecast_30_days.toFixed(2)}</strong></p>
               <p>{t.trend}: <span style={{ color: forecast.trend.includes('+') ? '#008000' : '#b22222', fontWeight: 'bold' }}>{forecast.trend}</span></p>
               <div className="forecast-meta">

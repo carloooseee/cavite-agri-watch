@@ -12,6 +12,8 @@ export interface ForecastData {
     lswi?: number;
     ndre?: number;
     softmax_prob?: number;
+    classification?: string;
+    city?: string;
 }
 
 export const AgriApi = {
@@ -23,8 +25,8 @@ export const AgriApi = {
     },
 
     // Get the Machine Learning "Foresee" data
-    getPrediction: async (): Promise<ForecastData> => {
-        const response = await fetch(`${BASE_URL}/predict/ndvi`);
+    getPrediction: async (cityName: string = "Cavite Province"): Promise<ForecastData> => {
+        const response = await fetch(`${BASE_URL}/predict/ndvi?city_name=${encodeURIComponent(cityName)}`);
         return await response.json();
     },
 
