@@ -45,32 +45,48 @@ if os.path.exists(MODEL_PATH):
 # 2. ENDPOINTS
 @app.get("/map/ndvi")
 def get_cavite_ndvi():
-    """Returns a tile URL for the NDVI layer with Anti-Gravity styling."""
+    """Returns a tile URL for the NDVI layer — full Cavite coverage via median composite."""
     try:
         # Define Cavite using official boundaries
         countries = ee.FeatureCollection("FAO/GAUL/2015/level2")
         cavite = countries.filter(ee.Filter.eq('ADM2_NAME', 'Cavite'))
-        
-        # Get latest Sentinel-2 image (Image Analysis Benchmark)
-        image = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
-            .filterBounds(cavite) \
-            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20)) \
-            .first()
-        
-        # Calculate NDVI and create a vegetation mask
-        ndvi = image.normalizedDifference(['B8', 'B4']).rename('ndvi')
-        
-        # Mask out everything with NDVI < 0.2 (Urban, Water, Bare Soil)
-        # This isolates "agricultural vegetation spots"
-        mask = ndvi.gt(0.2)
-        ndvi = ndvi.updateMask(mask)
-        
-        # Anti-Gravity Palette: Stress (Red) -> Alert (Yellow) -> Healthy (Neon Green)
+
+        # Use a 90-day median composite so every part of Cavite is covered.
+        # .first() only returns one satellite swath, leaving gaps.
+        # A median composite merges all available passes into one seamless image.
+        now = datetime.now()
+        start = (now - timedelta(days=90)).strftime('%Y-%m-%d')
+        end = now.strftime('%Y-%m-%d')
+
+        def mask_clouds(img):
+            qa = img.select('QA60')
+            cloud_mask = 1 << 10
+            cirrus_mask = 1 << 11
+            mask = qa.bitwiseAnd(cloud_mask).eq(0).And(qa.bitwiseAnd(cirrus_mask).eq(0))
+            return img.updateMask(mask).divide(10000).copyProperties(img, ['system:time_start'])
+
+        composite = (
+            ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+            .filterBounds(cavite)
+            .filterDate(start, end)
+            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 30))
+            .map(mask_clouds)
+            .median()
+            .clip(cavite)
+        )
+
+        # Calculate NDVI from the full composite
+        ndvi = composite.normalizedDifference(['B8', 'B4']).rename('ndvi')
+
+        # Mask out non-vegetation (NDVI < 0.2 = urban, water, bare soil)
+        ndvi = ndvi.updateMask(ndvi.gt(0.2))
+
+        # Stress (Red) -> Alert (Yellow) -> Healthy (Neon Green)
         viz_params = {
-            'min': 0, 
-            'max': 1, 
+            'min': 0.2,
+            'max': 0.85,
             'palette': ['#FF0000', '#FFFF00', '#00FF00', '#00FF88'],
-            'opacity': 0.7
+            'opacity': 0.75
         }
         
         map_info = ndvi.clip(cavite).getMapId(viz_params)

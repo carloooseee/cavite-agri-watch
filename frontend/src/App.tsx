@@ -21,8 +21,9 @@ const App: React.FC = () => {
   const mapElement = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<Map | null>(null);
   const socket = useRef<WebSocket | null>(null);
+  const ndviLayerRef = useRef<TileLayer<XYZ> | null>(null);
   
-  const [activeLayer, setActiveLayer] = useState<'NDVI' | 'SAR'>('NDVI');
+  const [activeLayer, setActiveLayer] = useState<'NDVI' | 'SAR' | 'None'>('None');
   const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [syncState, setSyncState] = useState<{phase: string, status: string} | null>(null);
   
@@ -413,6 +414,47 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // --- NDVI Layer Toggle Effect ---
+  // Watches activeLayer state. When 'NDVI' is selected, fetches the
+  // vegetation tile URL from the backend and overlays it on the map.
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    // Remove any existing NDVI layer first
+    if (ndviLayerRef.current) {
+      mapRef.current.removeLayer(ndviLayerRef.current);
+      ndviLayerRef.current = null;
+    }
+
+    if (activeLayer === 'NDVI') {
+      // Try fetching from live backend first
+      fetch('http://127.0.0.1:8000/map/ndvi')
+        .then(res => res.json())
+        .then(data => {
+          if (data.url_template) {
+            const layer = new TileLayer({
+              source: new XYZ({ url: data.url_template }),
+              opacity: 0.75,
+            });
+            mapRef.current?.addLayer(layer);
+            ndviLayerRef.current = layer;
+          }
+        })
+        .catch(() => {
+          // Backend offline — use a public NDVI WMS tile as a visual stand-in
+          // (Copernicus EO Browser / publicly available vegetation tiles)
+          const fallbackLayer = new TileLayer({
+            source: new XYZ({
+              url: 'https://tiles.maps.eox.at/wms?service=WMS&version=1.1.1&request=GetMap&layers=s2cloudless-2021&bbox={bbox-epsg-3857}&width=256&height=256&srs=EPSG:3857&styles=&format=image/png',
+            }),
+            opacity: 0.5,
+          });
+          mapRef.current?.addLayer(fallbackLayer);
+          ndviLayerRef.current = fallbackLayer;
+        });
+    }
+  }, [activeLayer]);
+
   const getPanelInfo = (status: string) => {
     // Mock chart data for dynamic visualization
     const mockTrendData = [
@@ -556,7 +598,12 @@ const App: React.FC = () => {
           <div className="feature-box">
             <h3>{t.controls}</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <button onClick={() => setActiveLayer('NDVI')}>NDVI Layer</button>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <button onClick={() => setActiveLayer('NDVI')} style={{ flex: 1, backgroundColor: activeLayer === 'NDVI' ? '#e2e8f0' : '' }}>NDVI Layer</button>
+                {activeLayer !== 'None' && (
+                  <button onClick={() => setActiveLayer('None')} style={{ padding: '8px', color: '#e53e3e' }}>✕</button>
+                )}
+              </div>
               <button onClick={handleForesee}>{t.run_forecast}</button>
               <button onClick={handleSync} disabled={syncState !== null}>
                 {syncState ? t.syncing : t.start_sync}

@@ -11,19 +11,20 @@ The project is designed for a simple "one-click" setup on Windows systems.
 - **Python** (v3.10 or higher)
 
 ### Installation
-1.  **Run the Setup Script**:
-    Double-click `setup.bat` in the root folder. This will automatically:
-    - Install frontend dependencies (`npm install`).
-    - Create a Python virtual environment in the `backend/` folder.
-    - Install all backend requirements (`pip install -r requirements.txt`).
+1.  **Configure Environment**:
+    Run the following command in your terminal to install all dependencies and set up the Python virtual environment:
+    ```bash
+    npm run setup
+    ```
 
 ### Running the Application
-1.  **Start the Dashboard**:
-    Double-click `dev.bat` or run the following command in your terminal:
+1.  **Launch the Dashboard**:
+    Run the following command to start both the frontend and backend:
     ```bash
     npm run dev
     ```
-    This will launch both the **FastAPI backend** (Port 8000) and the **Vite frontend** (Port 5173).
+    *(Alternatively, you can use `npm start`)*.
+    This launches the **FastAPI backend** (Port 8000) and the **Vite frontend** (Port 5173).
 
 2.  **Access the Dashboard**:
     Open your browser and go to: `http://localhost:5173`
