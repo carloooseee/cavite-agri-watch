@@ -417,6 +417,13 @@ const App: React.FC = () => {
         // Extract the feature's exact polygon in EPSG:4326 for the backend
         const geom = feature.getGeometry();
         if (geom) {
+          // Zoom to the selected municipality using its bounding box (Extent)
+          mapRef.current?.getView().fit(geom.getExtent(), { 
+            duration: 800, 
+            padding: [50, 50, 50, 50],
+            maxZoom: 14 
+          });
+
           // Use OL's built-in GeoJSON writer to convert the geometry to 4326
           const geoJsonWriter = new GeoJSON();
           const geomGeoJson = geoJsonWriter.writeGeometryObject(geom, {
