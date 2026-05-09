@@ -186,12 +186,20 @@ def predict_crop_health(city_name: str = "Cavite Province"):
         # 4-tier classification based on paper's logic
         if adjusted_prediction > 0.6:
             classification = "No Stress"
+            meaning = "High photosynthetic activity expected; crops will likely remain healthy and productive."
+            expert_advice = "Optimal conditions for peak yield; maintain standard precision irrigation."
         elif adjusted_prediction > 0.45:
             classification = "Mild Stress"
+            meaning = "Early signs of vigor reduction; minor monitoring required to prevent potential yield loss."
+            expert_advice = "Early-stage vigor drop; check for leaf-scale moisture stress and soil salinity."
         elif adjusted_prediction > 0.3:
             classification = "Moderate Stress"
+            meaning = "Significant vegetation decline predicted; immediate soil and irrigation assessment recommended."
+            expert_advice = "Significant metabolic failure risk; prioritize immediate high-impact foliar feeding."
         else:
             classification = "Severe Stress"
+            meaning = "Critical crop failure risk; emergency intervention needed as vigor is below sustainable levels."
+            expert_advice = "Emergency intervention required; prioritize soil remediation and intensive moisture management."
 
         return {
             "status": "Success",
@@ -200,6 +208,8 @@ def predict_crop_health(city_name: str = "Cavite Province"):
             "forecast_30_days": adjusted_prediction,
             "trend": trend_desc,
             "classification": classification,
+            "meaning": meaning,
+            "expert_advice": expert_advice,
             "accuracy_metric": "Model Confidence: 92.4%",
             "evi": adjusted_current * 0.85,
             "ndwi": 0.4 + (city_adjustment * 0.2),

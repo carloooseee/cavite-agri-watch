@@ -14,6 +14,8 @@ export interface ForecastData {
     softmax_prob?: number;
     classification?: string;
     city?: string;
+    meaning?: string;
+    expert_advice?: string;
 }
 
 export const AgriApi = {
