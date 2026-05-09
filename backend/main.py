@@ -57,8 +57,13 @@ def get_cavite_ndvi():
             .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20)) \
             .first()
         
-        # Calculate NDVI (Normalized Difference Vegetation Index)
+        # Calculate NDVI and create a vegetation mask
         ndvi = image.normalizedDifference(['B8', 'B4']).rename('ndvi')
+        
+        # Mask out everything with NDVI < 0.2 (Urban, Water, Bare Soil)
+        # This isolates "agricultural vegetation spots"
+        mask = ndvi.gt(0.2)
+        ndvi = ndvi.updateMask(mask)
         
         # Anti-Gravity Palette: Stress (Red) -> Alert (Yellow) -> Healthy (Neon Green)
         viz_params = {

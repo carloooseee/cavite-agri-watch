@@ -255,14 +255,24 @@ const App: React.FC = () => {
       currentY += chartH + 20;
     }
 
-    // Forecast if available
+    // Forecast & Spectral Metrics if available
     if (forecast) {
+      currentY += 10;
       doc.setFillColor(240, 249, 255);
-      doc.rect(15, currentY, 180, 25, 'F');
+      doc.rect(15, currentY, 180, 45, 'F');
+      
       doc.setFont("helvetica", "bold");
       doc.text(t.forecast_title, 20, currentY + 10);
+      
       doc.setFont("helvetica", "normal");
       doc.text(`${t.trend}: ${forecast.trend}`, 20, currentY + 18);
+      doc.text(`CNN Softmax Probability: ${((forecast.softmax_prob || 0) * 100).toFixed(1)}%`, 20, currentY + 26);
+      
+      doc.setFont("helvetica", "bold");
+      doc.text(`Spectral Readings:`, 20, currentY + 36);
+      doc.setFont("helvetica", "normal");
+      const spectralStr = `NDVI: ${forecast.current_ndvi.toFixed(2)} | EVI: ${forecast.evi?.toFixed(2)} | NDWI: ${forecast.ndwi?.toFixed(2)} | LSWI: ${forecast.lswi?.toFixed(2)} | NDRE: ${forecast.ndre?.toFixed(2)}`;
+      doc.text(spectralStr, 55, currentY + 36);
     }
     
     // Footer
@@ -330,12 +340,12 @@ const App: React.FC = () => {
     const selectHighlight = new Select({
       condition: click,
       style: new Style({
-        fill: new Fill({ color: 'rgba(255, 255, 255, 0.4)' }),
-        stroke: new Stroke({ color: '#000', width: 2 }),
+        fill: new Fill({ color: 'rgba(0, 255, 136, 0.1)' }), // Very faint neon glow
+        stroke: new Stroke({ color: '#00FF88', width: 3 }),  // Bright neon green border
         text: new Text({
           font: 'bold 14px sans-serif',
-          fill: new Fill({ color: '#000' }),
-          stroke: new Stroke({ color: '#fff', width: 3 })
+          fill: new Fill({ color: '#00FF88' }),
+          stroke: new Stroke({ color: '#000', width: 3 })
         })
       }),
     });
@@ -377,12 +387,12 @@ const App: React.FC = () => {
             const layer = new VectorLayer({
               source: source,
               style: new Style({
-                fill: new Fill({ color: city.color }),
-                stroke: new Stroke({ color: 'rgba(255,255,255,0.6)', width: 1.5 }),
+                fill: new Fill({ color: 'rgba(0,0,0,0)' }), // Transparent fill
+                stroke: new Stroke({ color: 'rgba(0,0,0,0.2)', width: 1 }), // Subtle border
                 text: new Text({
                   text: city.name, 
-                  font: 'bold 12px sans-serif',
-                  fill: new Fill({ color: '#000' }),
+                  font: 'bold 10px sans-serif',
+                  fill: new Fill({ color: '#444' }),
                   stroke: new Stroke({ color: '#fff', width: 2 })
                 })
               }),
