@@ -26,11 +26,13 @@ const App: React.FC = () => {
   const [activeLayer, setActiveLayer] = useState<'NDVI' | 'SAR' | 'None'>('None');
   const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [syncState, setSyncState] = useState<{phase: string, status: string} | null>(null);
-  
+  const [clickedGeometry, setClickedGeometry] = useState<object | null>(null); // GeoJSON geometry in EPSG:4326
+  const [ndviZoneLoading, setNdviZoneLoading] = useState(false);
+
   // Lab Mode States
   const [isLabMode, setIsLabMode] = useState(false);
   const [cvipData, setCvipData] = useState<any>(null);
-  
+
   // Real-time Bridge States
   const [healthStatus, setHealthStatus] = useState<string>("Awaiting Target");
   const [activeZone, setActiveZone] = useState<string>("Cavite Province");
@@ -357,9 +359,28 @@ const App: React.FC = () => {
     selectHighlight.on('select', (e) => {
       if (e.selected.length > 0) {
         const feature = e.selected[0];
-        const cityName = feature.get('name') || "Unknown Area"; 
-        setActiveZone(cityName); 
-        
+        const cityName = feature.get('name') || "Unknown Area";
+        setActiveZone(cityName);
+
+        // Extract the feature's exact polygon in EPSG:4326 for the backend
+        const geom = feature.getGeometry();
+        if (geom) {
+          // Use OL's built-in GeoJSON writer to convert the geometry to 4326
+          const geoJsonWriter = new GeoJSON();
+          const geomGeoJson = geoJsonWriter.writeGeometryObject(geom, {
+            featureProjection: 'EPSG:3857',
+            dataProjection: 'EPSG:4326',
+          });
+          setClickedGeometry(geomGeoJson);
+        }
+
+        // Clear any existing NDVI layer when switching zones
+        if (ndviLayerRef.current && mapRef.current) {
+          mapRef.current.removeLayer(ndviLayerRef.current);
+          ndviLayerRef.current = null;
+          setActiveLayer('None');
+        }
+
         // Align with paper's 4-tier classification prediction logic
         const statuses = ["No Stress", "Mild Stress", "Moderate Stress", "Severe Stress"];
         let hash = 0;
@@ -368,7 +389,7 @@ const App: React.FC = () => {
         }
         const randomIndex = hash % statuses.length;
         setHealthStatus(statuses[randomIndex]);
-        
+
         if (socket.current?.readyState === WebSocket.OPEN) {
           socket.current.send(JSON.stringify({ name: cityName }));
         }
@@ -414,46 +435,51 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // --- NDVI Layer Toggle Effect ---
-  // Watches activeLayer state. When 'NDVI' is selected, fetches the
-  // vegetation tile URL from the backend and overlays it on the map.
+  // --- NDVI Layer Cleanup Effect ---
+  // Only responsible for REMOVING the layer when activeLayer is set to 'None'.
+  // Adding the layer is handled exclusively by loadNdviForZone() to avoid
+  // the bug where this effect would overwrite the zone tile with the full province tile.
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (activeLayer === 'None' && ndviLayerRef.current && mapRef.current) {
+      mapRef.current.removeLayer(ndviLayerRef.current);
+      ndviLayerRef.current = null;
+    }
+  }, [activeLayer]);
 
-    // Remove any existing NDVI layer first
+  // Fetches and displays the NDVI vegetation layer for only the clicked municipality
+  // POSTs the exact polygon geometry so GEE clips to the municipality shape, not a rectangle.
+  const loadNdviForZone = async () => {
+    if (!clickedGeometry || !mapRef.current) return;
+    setNdviZoneLoading(true);
+
+    // Remove any existing NDVI layer
     if (ndviLayerRef.current) {
       mapRef.current.removeLayer(ndviLayerRef.current);
       ndviLayerRef.current = null;
     }
 
-    if (activeLayer === 'NDVI') {
-      // Try fetching from live backend first
-      fetch('http://127.0.0.1:8000/map/ndvi')
-        .then(res => res.json())
-        .then(data => {
-          if (data.url_template) {
-            const layer = new TileLayer({
-              source: new XYZ({ url: data.url_template }),
-              opacity: 0.75,
-            });
-            mapRef.current?.addLayer(layer);
-            ndviLayerRef.current = layer;
-          }
-        })
-        .catch(() => {
-          // Backend offline — use a public NDVI WMS tile as a visual stand-in
-          // (Copernicus EO Browser / publicly available vegetation tiles)
-          const fallbackLayer = new TileLayer({
-            source: new XYZ({
-              url: 'https://tiles.maps.eox.at/wms?service=WMS&version=1.1.1&request=GetMap&layers=s2cloudless-2021&bbox={bbox-epsg-3857}&width=256&height=256&srs=EPSG:3857&styles=&format=image/png',
-            }),
-            opacity: 0.5,
-          });
-          mapRef.current?.addLayer(fallbackLayer);
-          ndviLayerRef.current = fallbackLayer;
+    try {
+      const res = await fetch('http://127.0.0.1:8000/map/ndvi/zone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(clickedGeometry), // Send exact polygon, not a bbox
+      });
+      const data = await res.json();
+      if (data.url_template) {
+        const layer = new TileLayer({
+          source: new XYZ({ url: data.url_template }),
+          opacity: 0.8,
         });
+        mapRef.current.addLayer(layer);
+        ndviLayerRef.current = layer;
+        setActiveLayer('NDVI');
+      }
+    } catch (err) {
+      console.error('Failed to load zone NDVI:', err);
+    } finally {
+      setNdviZoneLoading(false);
     }
-  }, [activeLayer]);
+  };
 
   const getPanelInfo = (status: string) => {
     // Mock chart data for dynamic visualization
@@ -598,13 +624,28 @@ const App: React.FC = () => {
           <div className="feature-box">
             <h3>{t.controls}</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', gap: '4px' }}>
-                <button onClick={() => setActiveLayer('NDVI')} style={{ flex: 1, backgroundColor: activeLayer === 'NDVI' ? '#e2e8f0' : '' }}>NDVI Layer</button>
-                {activeLayer !== 'None' && (
-                  <button onClick={() => setActiveLayer('None')} style={{ padding: '8px', color: '#e53e3e' }}>✕</button>
-                )}
-              </div>
               <button onClick={handleForesee}>{t.run_forecast}</button>
+
+              {/* NDVI Zone button — only shows when a municipality is selected */}
+              {activeZone !== 'Cavite Province' && (
+                activeLayer === 'NDVI' ? (
+                  <button
+                    onClick={() => setActiveLayer('None')}
+                    style={{ color: '#e53e3e', border: '1px solid #e53e3e' }}
+                  >
+                    ✕ Hide NDVI Layer
+                  </button>
+                ) : (
+                  <button
+                    onClick={loadNdviForZone}
+                    disabled={ndviZoneLoading}
+                    className="btn-primary"
+                  >
+                    {ndviZoneLoading ? '⏳ Loading...' : `🛰 NDVI: ${activeZone}`}
+                  </button>
+                )
+              )}
+
               <button onClick={handleSync} disabled={syncState !== null}>
                 {syncState ? t.syncing : t.start_sync}
               </button>

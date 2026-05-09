@@ -2,7 +2,7 @@ import ee
 import pickle
 import pandas as pd
 import numpy as np
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import json
@@ -90,6 +90,55 @@ def get_cavite_ndvi():
         }
         
         map_info = ndvi.clip(cavite).getMapId(viz_params)
+        return {"url_template": map_info['tile_fetcher'].url_format}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/map/ndvi/zone")
+async def get_zone_ndvi_polygon(request: Request):
+    """
+    Accepts a GeoJSON geometry (Polygon or MultiPolygon) in the request body.
+    Clips the NDVI composite to the EXACT municipality shape — not a bounding box.
+    This ensures vegetation is only highlighted within the actual polygon boundary.
+    """
+    try:
+        body = await request.json()
+        # GEE accepts GeoJSON geometry objects directly
+        zone_geom = ee.Geometry(body)
+
+        now = datetime.now()
+        start = (now - timedelta(days=90)).strftime('%Y-%m-%d')
+        end = now.strftime('%Y-%m-%d')
+
+        def mask_clouds(img):
+            qa = img.select('QA60')
+            cloud_mask = 1 << 10
+            cirrus_mask = 1 << 11
+            mask = qa.bitwiseAnd(cloud_mask).eq(0).And(qa.bitwiseAnd(cirrus_mask).eq(0))
+            return img.updateMask(mask).divide(10000).copyProperties(img, ['system:time_start'])
+
+        composite = (
+            ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+            .filterBounds(zone_geom)
+            .filterDate(start, end)
+            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 30))
+            .map(mask_clouds)
+            .median()
+            .clip(zone_geom)  # Clips to the exact polygon, not a rectangle
+        )
+
+        ndvi = composite.normalizedDifference(['B8', 'B4']).rename('ndvi')
+        # Mask buildings, roads, water (NDVI < 0.2 = non-vegetation)
+        ndvi = ndvi.updateMask(ndvi.gt(0.2))
+
+        viz_params = {
+            'min': 0.2,
+            'max': 0.85,
+            'palette': ['#FF0000', '#FFFF00', '#00FF00', '#00FF88'],
+            'opacity': 0.8
+        }
+
+        map_info = ndvi.getMapId(viz_params)
         return {"url_template": map_info['tile_fetcher'].url_format}
     except Exception as e:
         return {"error": str(e)}
