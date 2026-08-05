@@ -4,10 +4,10 @@
   "description": "Unified entry point for Cavite Agri-Watch",
   "scripts": {
     "setup:frontend": "npm install --prefix frontend",
-    "setup:backend": "cd backend && py -m venv venv && .\\venv\\Scripts\\activate && pip install -r requirements.txt",
+    "setup:backend": "cd backend && python -m venv venv && (venv\\Scripts\\python -m pip install -r requirements.txt || venv/Scripts/python -m pip install -r requirements.txt)",
     "setup": "npm run setup:frontend && npm run setup:backend",
     "dev:frontend": "npm run dev --prefix frontend",
-    "dev:backend": "cd backend && .\\venv\\Scripts\\activate && uvicorn main:app --reload",
+    "dev:backend": "cd backend && (venv\\Scripts\\python -m uvicorn main:app --reload --port 8000 || venv/Scripts/python -m uvicorn main:app --reload --port 8000)",
     "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
     "start": "npm run dev"
   },
