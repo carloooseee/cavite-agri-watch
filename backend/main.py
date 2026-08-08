@@ -143,6 +143,87 @@ async def get_zone_ndvi_polygon(request: Request):
     except Exception as e:
         return {"error": str(e)}
 
+# Dynamic World 10m Land Cover palette: Vegetation = Green, Non-Vegetation = Red
+DW_PALETTE = [
+    '#FF0000',  # 0: Water (Non-Vegetation -> Red)
+    '#00FF88',  # 1: Trees (Vegetation -> Neon Green)
+    '#00FF88',  # 2: Grass (Vegetation -> Neon Green)
+    '#00FF88',  # 3: Flooded Vegetation (Vegetation -> Neon Green)
+    '#00FF88',  # 4: Crops (Vegetation -> Neon Green)
+    '#00FF88',  # 5: Shrub & Scrub (Vegetation -> Neon Green)
+    '#FF0000',  # 6: Built Area / Buildings & Roads (Non-Vegetation -> Red)
+    '#FF0000',  # 7: Bare Land (Non-Vegetation -> Red)
+    '#FF0000'   # 8: Snow & Ice (Non-Vegetation -> Red)
+]
+
+
+@app.get("/map/dynamic-world")
+def get_cavite_dynamic_world():
+    """Returns a tile URL for the Dynamic World LULC layer across Cavite."""
+    try:
+        countries = ee.FeatureCollection("FAO/GAUL/2015/level2")
+        cavite = countries.filter(ee.Filter.eq('ADM2_NAME', 'Cavite'))
+
+        now = datetime.now()
+        start = (now - timedelta(days=90)).strftime('%Y-%m-%d')
+        end = now.strftime('%Y-%m-%d')
+
+        dw = (
+            ee.ImageCollection('GOOGLE/DYNAMICWORLD/V1')
+            .filterBounds(cavite)
+            .filterDate(start, end)
+            .select('label')
+            .reduce(ee.Reducer.mode())
+            .rename('label')
+            .clip(cavite)
+        )
+
+        viz_params = {
+            'min': 0,
+            'max': 8,
+            'palette': DW_PALETTE,
+            'opacity': 0.8
+        }
+
+        map_info = dw.getMapId(viz_params)
+        return {"url_template": map_info['tile_fetcher'].url_format}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/map/dynamic-world/zone")
+async def get_zone_dynamic_world_polygon(request: Request):
+    """Clips Dynamic World LULC composite to the exact municipality geometry."""
+    try:
+        body = await request.json()
+        zone_geom = ee.Geometry(body)
+
+        now = datetime.now()
+        start = (now - timedelta(days=90)).strftime('%Y-%m-%d')
+        end = now.strftime('%Y-%m-%d')
+
+        dw = (
+            ee.ImageCollection('GOOGLE/DYNAMICWORLD/V1')
+            .filterBounds(zone_geom)
+            .filterDate(start, end)
+            .select('label')
+            .reduce(ee.Reducer.mode())
+            .rename('label')
+            .clip(zone_geom)
+        )
+
+        viz_params = {
+            'min': 0,
+            'max': 8,
+            'palette': DW_PALETTE,
+            'opacity': 0.85
+        }
+
+        map_info = dw.getMapId(viz_params)
+        return {"url_template": map_info['tile_fetcher'].url_format}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.get("/predict/ndvi")
 def predict_crop_health(city_name: str = "Cavite Province"):
     """Uses the ML model to foresee future crop health based on history."""

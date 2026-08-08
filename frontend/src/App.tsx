@@ -23,11 +23,13 @@ const App: React.FC = () => {
   const socket = useRef<WebSocket | null>(null);
   const ndviLayerRef = useRef<TileLayer<XYZ> | null>(null);
   
-  const [activeLayer, setActiveLayer] = useState<'NDVI' | 'SAR' | 'None'>('None');
+  const [activeLayer, setActiveLayer] = useState<'NDVI' | 'DynamicWorld' | 'SAR' | 'None'>('None');
   const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [syncState, setSyncState] = useState<{phase: string, status: string} | null>(null);
   const [clickedGeometry, setClickedGeometry] = useState<object | null>(null); // GeoJSON geometry in EPSG:4326
   const [ndviZoneLoading, setNdviZoneLoading] = useState(false);
+  const [dwZoneLoading, setDwZoneLoading] = useState(false);
+
 
   // Lab Mode States
   const [isLabMode, setIsLabMode] = useState(false);
@@ -511,7 +513,7 @@ const App: React.FC = () => {
     if (!clickedGeometry || !mapRef.current) return;
     setNdviZoneLoading(true);
 
-    // Remove any existing NDVI layer
+    // Remove any existing layer
     if (ndviLayerRef.current) {
       mapRef.current.removeLayer(ndviLayerRef.current);
       ndviLayerRef.current = null;
@@ -542,6 +544,44 @@ const App: React.FC = () => {
       setNdviZoneLoading(false);
     }
   };
+
+  // Fetches and displays the Dynamic World 10m LULC layer for the clicked municipality
+  const loadDynamicWorldForZone = async () => {
+    if (!clickedGeometry || !mapRef.current) return;
+    setDwZoneLoading(true);
+
+    // Remove any existing layer
+    if (ndviLayerRef.current) {
+      mapRef.current.removeLayer(ndviLayerRef.current);
+      ndviLayerRef.current = null;
+    }
+
+    try {
+      const res = await fetch('http://127.0.0.1:8000/map/dynamic-world/zone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(clickedGeometry),
+      });
+      const data = await res.json();
+      if (data.url_template) {
+        const layer = new TileLayer({
+          source: new XYZ({ 
+            url: data.url_template,
+            crossOrigin: 'anonymous' 
+          }),
+          opacity: 0.85,
+        });
+        mapRef.current.addLayer(layer);
+        ndviLayerRef.current = layer;
+        setActiveLayer('DynamicWorld');
+      }
+    } catch (err) {
+      console.error('Failed to load zone Dynamic World:', err);
+    } finally {
+      setDwZoneLoading(false);
+    }
+  };
+
 
   const getPanelInfo = (status: string) => {
     // Mock chart data for dynamic visualization
@@ -690,25 +730,57 @@ const App: React.FC = () => {
                 {isForecasting ? '⏳ Foreseeing...' : t.run_forecast}
               </button>
 
-              {/* NDVI Zone button — only shows when a municipality is selected */}
+              {/* NDVI & Dynamic World Zone buttons — only show when a municipality is selected */}
               {activeZone !== 'Cavite Province' && (
-                activeLayer === 'NDVI' ? (
-                  <button
-                    onClick={() => setActiveLayer('None')}
-                    style={{ color: '#e53e3e', border: '1px solid #e53e3e' }}
-                  >
-                    ✕ Hide NDVI Layer
-                  </button>
-                ) : (
-                  <button
-                    onClick={loadNdviForZone}
-                    disabled={ndviZoneLoading}
-                    className="btn-primary"
-                  >
-                    {ndviZoneLoading ? '⏳ Loading...' : `🛰 NDVI: ${activeZone}`}
-                  </button>
-                )
+                <>
+                  {activeLayer === 'NDVI' ? (
+                    <button
+                      onClick={() => setActiveLayer('None')}
+                      style={{ color: '#e53e3e', border: '1px solid #e53e3e' }}
+                    >
+                      ✕ Hide NDVI Layer
+                    </button>
+                  ) : (
+                    <button
+                      onClick={loadNdviForZone}
+                      disabled={ndviZoneLoading || dwZoneLoading}
+                      className="btn-primary"
+                    >
+                      {ndviZoneLoading ? '⏳ Loading NDVI...' : `🛰 NDVI Vigor: ${activeZone}`}
+                    </button>
+                  )}
+
+                  {activeLayer === 'DynamicWorld' ? (
+                    <button
+                      onClick={() => setActiveLayer('None')}
+                      style={{ color: '#e53e3e', border: '1px solid #e53e3e' }}
+                    >
+                      ✕ Hide Dynamic World
+                    </button>
+                  ) : (
+                    <button
+                      onClick={loadDynamicWorldForZone}
+                      disabled={ndviZoneLoading || dwZoneLoading}
+                      style={{ backgroundColor: '#2B6CB0', color: '#FFF' }}
+                    >
+                      {dwZoneLoading ? '⏳ Loading LULC...' : `🌍 Dynamic World (Built vs Crops)`}
+                    </button>
+                  )}
+                </>
               )}
+
+              {/* Dynamic World Legend */}
+              {activeLayer === 'DynamicWorld' && (
+                <div style={{ marginTop: '10px', padding: '8px', background: '#F7FAFC', borderRadius: '6px', fontSize: '0.75rem', border: '1px solid #E2E8F0' }}>
+                  <strong>Dynamic World Mask Legend</strong>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
+                    <div><span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#00FF88', borderRadius: '2px', marginRight: '6px' }}></span><strong>Vegetation</strong> (Crops, Trees, Grass)</div>
+                    <div><span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#FF0000', borderRadius: '2px', marginRight: '6px' }}></span><strong>Non-Vegetation</strong> (Buildings, Roads, Water)</div>
+                  </div>
+                </div>
+              )}
+
+
 
               <button onClick={handleSync} disabled={syncState !== null}>
                 {syncState ? t.syncing : t.start_sync}

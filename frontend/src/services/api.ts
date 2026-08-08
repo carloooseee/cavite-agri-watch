@@ -26,6 +26,14 @@ export const AgriApi = {
         return data.url_template;
     },
 
+    // Get Dynamic World 10m Land Use/Land Cover Tile URL from GEE
+    getDynamicWorldLayer: async (): Promise<string> => {
+        const response = await fetch(`${BASE_URL}/map/dynamic-world`);
+        const data = await response.json();
+        return data.url_template;
+    },
+
+
     // Get the Machine Learning "Foresee" data
     getPrediction: async (cityName: string = "Cavite Province"): Promise<ForecastData> => {
         const response = await fetch(`${BASE_URL}/predict/ndvi?city_name=${encodeURIComponent(cityName)}`);
