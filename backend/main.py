@@ -169,15 +169,14 @@ def get_cavite_dynamic_world():
         end = now.strftime('%Y-%m-%d')
 
         # 1. Base Dynamic World Mask
-        bands = ['water', 'trees', 'grass', 'flooded_vegetation', 'crops', 'shrub_and_scrub', 'built', 'bare', 'snow_and_ice']
-        dw_median = (
+        # Use the pre-computed categorical 'label' band with mosaic for max speed and no gaps
+        label = (
             ee.ImageCollection('GOOGLE/DYNAMICWORLD/V1')
             .filterBounds(cavite)
             .filterDate(start, end)
-            .select(bands)
-            .median()
+            .select('label')
+            .mosaic()
         )
-        label = dw_median.toArray().arrayArgmax().arrayGet([0]).rename('label')
 
         # 2. Physics-Based Correction using NDVI
         def mask_clouds(img):
@@ -193,7 +192,7 @@ def get_cavite_dynamic_world():
             .filterDate(start, end)
             .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 30))
             .map(mask_clouds)
-            .median()
+            .mosaic()
         )
         ndvi = s2_composite.normalizedDifference(['B8', 'B4']).rename('ndvi')
 
@@ -230,15 +229,13 @@ async def get_zone_dynamic_world_polygon(request: Request):
         end = now.strftime('%Y-%m-%d')
 
         # 1. Base Dynamic World Mask
-        bands = ['water', 'trees', 'grass', 'flooded_vegetation', 'crops', 'shrub_and_scrub', 'built', 'bare', 'snow_and_ice']
-        dw_median = (
+        label = (
             ee.ImageCollection('GOOGLE/DYNAMICWORLD/V1')
             .filterBounds(zone_geom)
             .filterDate(start, end)
-            .select(bands)
-            .median()
+            .select('label')
+            .mosaic()
         )
-        label = dw_median.toArray().arrayArgmax().arrayGet([0]).rename('label')
 
         # 2. Physics-Based Correction using NDVI
         def mask_clouds(img):
@@ -254,7 +251,7 @@ async def get_zone_dynamic_world_polygon(request: Request):
             .filterDate(start, end)
             .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 30))
             .map(mask_clouds)
-            .median()
+            .mosaic()
         )
         ndvi = s2_composite.normalizedDifference(['B8', 'B4']).rename('ndvi')
 

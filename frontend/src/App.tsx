@@ -556,30 +556,48 @@ const App: React.FC = () => {
       ndviLayerRef.current = null;
     }
 
-    try {
-      const res = await fetch('http://127.0.0.1:8000/map/dynamic-world/zone', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(clickedGeometry),
-      });
-      const data = await res.json();
-      if (data.url_template) {
-        const layer = new TileLayer({
-          source: new XYZ({ 
-            url: data.url_template,
-            crossOrigin: 'anonymous' 
-          }),
-          opacity: 0.85,
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    while (attempts < maxAttempts) {
+      try {
+        const res = await fetch('http://127.0.0.1:8000/map/dynamic-world/zone', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(clickedGeometry),
         });
-        mapRef.current.addLayer(layer);
-        ndviLayerRef.current = layer;
-        setActiveLayer('DynamicWorld');
+        
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        
+        const data = await res.json();
+        
+        if (data.url_template) {
+          const layer = new TileLayer({
+            source: new XYZ({ 
+              url: data.url_template,
+              crossOrigin: 'anonymous' 
+            }),
+            opacity: 0.85,
+          });
+          mapRef.current.addLayer(layer);
+          ndviLayerRef.current = layer;
+          setActiveLayer('DynamicWorld');
+          break; // Success, exit the retry loop!
+        } else if (data.error) {
+          throw new Error(data.error);
+        }
+      } catch (err) {
+        attempts++;
+        console.warn(`Dynamic World load attempt ${attempts} failed:`, err);
+        if (attempts >= maxAttempts) {
+          console.error('Final failure to load zone Dynamic World:', err);
+        } else {
+          // Wait 1.5 seconds before retrying to let GEE rate limits cool down
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        }
       }
-    } catch (err) {
-      console.error('Failed to load zone Dynamic World:', err);
-    } finally {
-      setDwZoneLoading(false);
     }
+    setDwZoneLoading(false);
   };
 
 
