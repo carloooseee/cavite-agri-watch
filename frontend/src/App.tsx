@@ -730,40 +730,23 @@ const App: React.FC = () => {
                 {isForecasting ? '⏳ Foreseeing...' : t.run_forecast}
               </button>
 
-              {/* NDVI & Dynamic World Zone buttons — only show when a municipality is selected */}
+              {/* Dynamic World Zone buttons — only show when a municipality is selected */}
               {activeZone !== 'Cavite Province' && (
                 <>
-                  {activeLayer === 'NDVI' ? (
-                    <button
-                      onClick={() => setActiveLayer('None')}
-                      style={{ color: '#e53e3e', border: '1px solid #e53e3e' }}
-                    >
-                      ✕ Hide NDVI Layer
-                    </button>
-                  ) : (
-                    <button
-                      onClick={loadNdviForZone}
-                      disabled={ndviZoneLoading || dwZoneLoading}
-                      className="btn-primary"
-                    >
-                      {ndviZoneLoading ? '⏳ Loading NDVI...' : `🛰 NDVI Vigor: ${activeZone}`}
-                    </button>
-                  )}
-
                   {activeLayer === 'DynamicWorld' ? (
                     <button
                       onClick={() => setActiveLayer('None')}
                       style={{ color: '#e53e3e', border: '1px solid #e53e3e' }}
                     >
-                      ✕ Hide Dynamic World
+                      ✕ Hide Land Cover
                     </button>
                   ) : (
                     <button
                       onClick={loadDynamicWorldForZone}
-                      disabled={ndviZoneLoading || dwZoneLoading}
+                      disabled={dwZoneLoading}
                       style={{ backgroundColor: '#2B6CB0', color: '#FFF' }}
                     >
-                      {dwZoneLoading ? '⏳ Loading LULC...' : `🌍 Dynamic World (Built vs Crops)`}
+                      {dwZoneLoading ? '⏳ Scanning...' : `🌍 Analyze Land Cover`}
                     </button>
                   )}
                 </>
@@ -772,22 +755,13 @@ const App: React.FC = () => {
               {/* Dynamic World Legend */}
               {activeLayer === 'DynamicWorld' && (
                 <div style={{ marginTop: '10px', padding: '8px', background: '#F7FAFC', borderRadius: '6px', fontSize: '0.75rem', border: '1px solid #E2E8F0' }}>
-                  <strong>Dynamic World Mask Legend</strong>
+                  <strong>Land Cover Mask Legend</strong>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
                     <div><span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#00FF88', borderRadius: '2px', marginRight: '6px' }}></span><strong>Vegetation</strong> (Crops, Trees, Grass)</div>
-                    <div><span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#FF0000', borderRadius: '2px', marginRight: '6px' }}></span><strong>Non-Vegetation</strong> (Buildings, Roads, Water)</div>
+                    <div><span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#FF0000', borderRadius: '2px', marginRight: '6px' }}></span><strong>Built Area</strong> (Roads, Infrastructure)</div>
                   </div>
                 </div>
               )}
-
-
-
-              <button onClick={handleSync} disabled={syncState !== null}>
-                {syncState ? t.syncing : t.start_sync}
-              </button>
-              <button onClick={handleToggleLabMode} className="btn-primary" style={{ marginTop: '8px' }}>
-                {isLabMode ? t.exit_lab : t.enter_lab}
-              </button>
             </div>
 
             {syncState && (
