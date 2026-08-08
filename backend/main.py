@@ -165,18 +165,46 @@ def get_cavite_dynamic_world():
         cavite = countries.filter(ee.Filter.eq('ADM2_NAME', 'Cavite'))
 
         now = datetime.now()
-        start = (now - timedelta(days=90)).strftime('%Y-%m-%d')
+        start = (now - timedelta(days=180)).strftime('%Y-%m-%d')
         end = now.strftime('%Y-%m-%d')
 
-        dw = (
+        # 1. Base Dynamic World Mask
+        bands = ['water', 'trees', 'grass', 'flooded_vegetation', 'crops', 'shrub_and_scrub', 'built', 'bare', 'snow_and_ice']
+        dw_median = (
             ee.ImageCollection('GOOGLE/DYNAMICWORLD/V1')
             .filterBounds(cavite)
             .filterDate(start, end)
-            .select('label')
-            .reduce(ee.Reducer.mode())
-            .rename('label')
-            .clip(cavite)
+            .select(bands)
+            .median()
         )
+        label = dw_median.toArray().arrayArgmax().arrayGet([0]).rename('label')
+
+        # 2. Physics-Based Correction using NDVI
+        def mask_clouds(img):
+            qa = img.select('QA60')
+            cloud_mask = 1 << 10
+            cirrus_mask = 1 << 11
+            mask = qa.bitwiseAnd(cloud_mask).eq(0).And(qa.bitwiseAnd(cirrus_mask).eq(0))
+            return img.updateMask(mask).divide(10000)
+
+        s2_composite = (
+            ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+            .filterBounds(cavite)
+            .filterDate(start, end)
+            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 30))
+            .map(mask_clouds)
+            .median()
+        )
+        ndvi = s2_composite.normalizedDifference(['B8', 'B4']).rename('ndvi')
+
+        # Combine: 
+        # If NDVI is VERY high (> 0.5), force it to be Vegetation (Class 1).
+        # If NDVI is low/moderate (< 0.25), force it to be Non-Vegetation (Class 6: Built/Red) to reveal more roads.
+        # Everything else remains the Dynamic World AI's original classification.
+        label = label.where(ndvi.gt(0.5), 1)
+        label = label.where(ndvi.lt(0.25), 6)
+        
+        label = label.clip(cavite)
 
         viz_params = {
             'min': 0,
@@ -185,7 +213,7 @@ def get_cavite_dynamic_world():
             'opacity': 0.8
         }
 
-        map_info = dw.getMapId(viz_params)
+        map_info = label.getMapId(viz_params)
         return {"url_template": map_info['tile_fetcher'].url_format}
     except Exception as e:
         return {"error": str(e)}
@@ -198,18 +226,46 @@ async def get_zone_dynamic_world_polygon(request: Request):
         zone_geom = ee.Geometry(body)
 
         now = datetime.now()
-        start = (now - timedelta(days=90)).strftime('%Y-%m-%d')
+        start = (now - timedelta(days=180)).strftime('%Y-%m-%d')
         end = now.strftime('%Y-%m-%d')
 
-        dw = (
+        # 1. Base Dynamic World Mask
+        bands = ['water', 'trees', 'grass', 'flooded_vegetation', 'crops', 'shrub_and_scrub', 'built', 'bare', 'snow_and_ice']
+        dw_median = (
             ee.ImageCollection('GOOGLE/DYNAMICWORLD/V1')
             .filterBounds(zone_geom)
             .filterDate(start, end)
-            .select('label')
-            .reduce(ee.Reducer.mode())
-            .rename('label')
-            .clip(zone_geom)
+            .select(bands)
+            .median()
         )
+        label = dw_median.toArray().arrayArgmax().arrayGet([0]).rename('label')
+
+        # 2. Physics-Based Correction using NDVI
+        def mask_clouds(img):
+            qa = img.select('QA60')
+            cloud_mask = 1 << 10
+            cirrus_mask = 1 << 11
+            mask = qa.bitwiseAnd(cloud_mask).eq(0).And(qa.bitwiseAnd(cirrus_mask).eq(0))
+            return img.updateMask(mask).divide(10000)
+
+        s2_composite = (
+            ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+            .filterBounds(zone_geom)
+            .filterDate(start, end)
+            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 30))
+            .map(mask_clouds)
+            .median()
+        )
+        ndvi = s2_composite.normalizedDifference(['B8', 'B4']).rename('ndvi')
+
+        # Combine: 
+        # If NDVI is VERY high (> 0.5), force it to be Vegetation (Class 1).
+        # If NDVI is low/moderate (< 0.25), force it to be Non-Vegetation (Class 6: Built/Red) to reveal more roads.
+        # Everything else remains the Dynamic World AI's original classification.
+        label = label.where(ndvi.gt(0.5), 1)
+        label = label.where(ndvi.lt(0.25), 6)
+        
+        label = label.clip(zone_geom)
 
         viz_params = {
             'min': 0,
@@ -218,7 +274,7 @@ async def get_zone_dynamic_world_polygon(request: Request):
             'opacity': 0.85
         }
 
-        map_info = dw.getMapId(viz_params)
+        map_info = label.getMapId(viz_params)
         return {"url_template": map_info['tile_fetcher'].url_format}
     except Exception as e:
         return {"error": str(e)}
