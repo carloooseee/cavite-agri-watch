@@ -351,7 +351,8 @@ const App: React.FC = () => {
     };
 
     const caviteCenter = fromLonLat([120.90, 14.28]);
-    const philippinesExtent = transformExtent([116.93, 4.59, 126.60, 21.28], 'EPSG:4326', 'EPSG:3857');
+    // Tight bounding box restricted strictly to Cavite Province
+    const caviteExtent = transformExtent([120.53, 14.07, 121.05, 14.50], 'EPSG:4326', 'EPSG:3857');
 
     const caviteLayer = new VectorLayer({
       source: new VectorSource({ url: '/geojson/cavite.geojson', format: new GeoJSON() }),
@@ -390,7 +391,8 @@ const App: React.FC = () => {
     mapRef.current = new Map({
       target: mapElement.current,
       layers: [ new TileLayer({ source: new OSM() }), caviteLayer ],
-      view: new View({ center: caviteCenter, zoom: 10, minZoom: 5, extent: philippinesExtent }),
+      // Prevent zooming out beyond Cavite (minZoom: 9) and lock panning to Cavite bounding box
+      view: new View({ center: caviteCenter, zoom: 10, minZoom: 9, extent: caviteExtent }),
     });
 
     // 2. Neon "Scan Area" Highlight Interaction
