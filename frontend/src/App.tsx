@@ -876,23 +876,23 @@ const App: React.FC = () => {
               <h3>{t.spectral_title}</h3>
               <div className="spectral-grid">
                 <div className="spectral-item">
-                  NDVI: <strong>{forecast?.current_ndvi.toFixed(2) || '0.00'}</strong>
+                  NDVI: <strong>{forecast?.current_ndvi !== undefined ? forecast.current_ndvi.toFixed(2) : '--'}</strong>
                   <p style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>General vegetation health & greenness.</p>
                 </div>
                 <div className="spectral-item">
-                  EVI: <strong>{forecast?.evi?.toFixed(2) || '0.00'}</strong>
+                  EVI: <strong>{forecast?.evi !== undefined ? forecast.evi.toFixed(2) : '--'}</strong>
                   <p style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Atmospheric correction for dense canopy.</p>
                 </div>
                 <div className="spectral-item">
-                  NDWI: <strong>{forecast?.ndwi?.toFixed(2) || '0.00'}</strong>
+                  NDWI: <strong>{forecast?.ndwi !== undefined ? forecast.ndwi.toFixed(2) : '--'}</strong>
                   <p style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Surface water and soil moisture levels.</p>
                 </div>
                 <div className="spectral-item">
-                  LSWI: <strong>{forecast?.lswi?.toFixed(2) || '0.00'}</strong>
+                  LSWI: <strong>{forecast?.lswi !== undefined ? forecast.lswi.toFixed(2) : '--'}</strong>
                   <p style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Water content inside plant leaves.</p>
                 </div>
                 <div className="spectral-item">
-                  NDRE: <strong>{forecast?.ndre?.toFixed(2) || '0.00'}</strong>
+                  NDRE: <strong>{forecast?.ndre !== undefined ? forecast.ndre.toFixed(2) : '--'}</strong>
                   <p style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Hidden, early-stage stress detection.</p>
                 </div>
               </div>
