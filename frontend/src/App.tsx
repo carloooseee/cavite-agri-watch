@@ -489,8 +489,8 @@ const App: React.FC = () => {
             const layer = new VectorLayer({
               source: source,
               style: new Style({
-                fill: new Fill({ color: 'rgba(0,0,0,0)' }), // Transparent fill
-                stroke: new Stroke({ color: 'rgba(0,0,0,0.2)', width: 1 }), // Subtle border
+                fill: new Fill({ color: city.color }),
+                stroke: new Stroke({ color: 'rgba(0,0,0,0.3)', width: 1 }), // Subtle border
                 text: new Text({
                   text: city.name, 
                   font: 'bold 10px sans-serif',
