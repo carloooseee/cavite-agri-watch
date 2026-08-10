@@ -42,13 +42,6 @@ const CITIES = [
   { name: 'Trece Martires', color: 'rgba(153, 102, 255, 0.5)' }
 ];
 
-const cityBaselineMap: Record<string, string> = {
-  "Silang": "No Stress",
-  "General Trias": "Mild Stress",
-  "Alfonso": "No Stress",
-  "Bacoor": "Moderate Stress"
-};
-
 const App: React.FC = () => {
   const mapElement = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<OLMap | null>(null);
@@ -173,8 +166,9 @@ const App: React.FC = () => {
 
       if (data && !Object.prototype.hasOwnProperty.call(data, 'error') && data.status !== "Error") {
         setForecast(data);
-        if (data.classification) {
-          setHealthStatus(data.classification);
+        const statusVal = data.health_status || data.classification || data.status;
+        if (statusVal && statusVal !== "Success" && statusVal !== "OK") {
+          setHealthStatus(statusVal);
         }
         setActionProgress({ title: 'AI Forecast', status: 'Forecast Complete!', percent: 100 });
       } else {
@@ -444,8 +438,7 @@ const App: React.FC = () => {
           setActiveLayer('None');
         }
 
-        const newStatus = cityBaselineMap[cityName] || "No Stress";
-        setHealthStatus(newStatus);
+        setHealthStatus("Awaiting Analysis");
 
         if (socket.current?.readyState === WebSocket.OPEN) {
           socket.current.send(JSON.stringify({ name: cityName }));
@@ -796,8 +789,7 @@ const App: React.FC = () => {
       setActiveLayer('None');
     }
 
-    const newStatus = cityBaselineMap[cityName] || "No Stress";
-    setHealthStatus(newStatus);
+    setHealthStatus("Awaiting Analysis");
 
     if (socket.current?.readyState === WebSocket.OPEN) {
       socket.current.send(JSON.stringify({ name: cityName }));
