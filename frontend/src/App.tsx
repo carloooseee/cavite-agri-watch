@@ -771,19 +771,15 @@ const App: React.FC = () => {
               {activeZone !== 'Cavite Province' && (
                 <>
                   {activeLayer === 'DynamicWorld' ? (
-                    <button
-                      onClick={() => setActiveLayer('None')}
-                      style={{ color: '#e53e3e', border: '1px solid #e53e3e' }}
-                    >
-                      ✕ Hide Land Cover
+                    <button onClick={() => setActiveLayer('None')}>
+                      Hide Land Cover
                     </button>
                   ) : (
                     <button
                       onClick={loadDynamicWorldForZone}
                       disabled={dwZoneLoading}
-                      style={{ backgroundColor: '#2B6CB0', color: '#FFF' }}
                     >
-                      {dwZoneLoading ? '⏳ Scanning...' : `🌍 Analyze Land Cover`}
+                      {dwZoneLoading ? 'Scanning...' : 'Analyze Land Cover'}
                     </button>
                   )}
                 </>
