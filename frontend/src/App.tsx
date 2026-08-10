@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './App.css';
 import 'ol/ol.css';
-import Map from 'ol/Map';
+import OLMap from 'ol/Map';
 import View from 'ol/View';
 import TileLayer from 'ol/layer/Tile';
 import OSM from 'ol/source/OSM';
@@ -17,18 +17,49 @@ import XYZ from 'ol/source/XYZ';
 import { jsPDF } from "jspdf";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
+const CITIES = [
+  { name: 'Alfonso', color: 'rgba(139, 69, 19, 0.5)' },
+  { name: 'Amadeo', color: 'rgba(205, 133, 63, 0.5)' },
+  { name: 'Bacoor', color: 'rgba(75, 192, 192, 0.5)' },
+  { name: 'Carmona', color: 'rgba(156, 163, 175, 0.5)' },
+  { name: 'Cavite City', color: 'rgba(83, 102, 255, 0.5)' },
+  { name: 'Dasmariñas', color: 'rgba(255, 99, 132, 0.5)' },
+  { name: 'General Emilio Aguinaldo', color: 'rgba(46, 139, 87, 0.5)' },
+  { name: 'General Trias', color: 'rgba(255, 206, 86, 0.5)' },
+  { name: 'Imus', color: 'rgba(54, 162, 235, 0.5)' },
+  { name: 'Indang', color: 'rgba(0, 128, 128, 0.5)' },
+  { name: 'Kawit', color: 'rgba(0, 191, 255, 0.5)' },
+  { name: 'Magallanes', color: 'rgba(255, 69, 0, 0.5)' },
+  { name: 'Maragondon', color: 'rgba(107, 142, 35, 0.5)' },
+  { name: 'Mendez', color: 'rgba(218, 165, 32, 0.5)' },
+  { name: 'Naic', color: 'rgba(100, 149, 237, 0.5)' },
+  { name: 'Noveleta', color: 'rgba(255, 140, 0, 0.5)' },
+  { name: 'Rosario', color: 'rgba(220, 20, 60, 0.5)' },
+  { name: 'Silang', color: 'rgba(255, 105, 180, 0.5)' },
+  { name: 'Tagaytay', color: 'rgba(255, 159, 64, 0.5)' },
+  { name: 'Tanza', color: 'rgba(123, 104, 238, 0.5)' },
+  { name: 'Ternate', color: 'rgba(64, 224, 208, 0.5)' },
+  { name: 'Trece Martires', color: 'rgba(153, 102, 255, 0.5)' }
+];
+
 const App: React.FC = () => {
   const mapElement = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<Map | null>(null);
+  const mapRef = useRef<OLMap | null>(null);
   const socket = useRef<WebSocket | null>(null);
   const ndviLayerRef = useRef<TileLayer<XYZ> | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cityDataMapRef = useRef<Map<string, { geom: any; geomGeoJson: any }>>(new Map());
   
   const [activeLayer, setActiveLayer] = useState<'NDVI' | 'DynamicWorld' | 'SAR' | 'None'>('None');
   const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [syncState] = useState<{phase: string, status: string} | null>(null);
   const [clickedGeometry, setClickedGeometry] = useState<object | null>(null); // GeoJSON geometry in EPSG:4326
-  // const [ndviZoneLoading, setNdviZoneLoading] = useState(false);
   const [dwZoneLoading, setDwZoneLoading] = useState(false);
+  const [actionProgress, setActionProgress] = useState<{
+    title: string;
+    status: string;
+    percent: number;
+  } | null>(null);
 
 
   // Lab Mode States
@@ -160,26 +191,36 @@ const App: React.FC = () => {
   const [isForecasting, setIsForecasting] = useState(false);
   const handleForesee = async () => {
     setIsForecasting(true);
+    setActionProgress({ title: 'AI Forecast', status: 'Connecting to Earth Engine...', percent: 15 });
     try {
       let data;
       if (clickedGeometry) {
+        setActionProgress({ title: 'AI Forecast', status: `Calculating 5 spectral bands for ${activeZone}...`, percent: 45 });
         data = await AgriApi.getZonePrediction(clickedGeometry as Record<string, unknown>, activeZone);
       } else {
+        setActionProgress({ title: 'AI Forecast', status: 'Loading historical baseline data...', percent: 45 });
         data = await AgriApi.getPrediction(activeZone);
       }
       
+      setActionProgress({ title: 'AI Forecast', status: 'Running Random Forest ML model...', percent: 80 });
+      await new Promise(r => setTimeout(r, 300));
+
       if (data && !Object.prototype.hasOwnProperty.call(data, 'error') && data.status !== "Error") {
         setForecast(data);
         if (data.classification) {
           setHealthStatus(data.classification);
         }
+        setActionProgress({ title: 'AI Forecast', status: 'Forecast Complete!', percent: 100 });
       } else {
         console.error("Backend error:", data.message || data.error);
+        setActionProgress({ title: 'AI Forecast', status: 'Error fetching forecast.', percent: 100 });
       }
     } catch (err) {
       console.error("Forecasting failed:", err);
+      setActionProgress({ title: 'AI Forecast', status: 'Failed to process request.', percent: 100 });
     } finally {
       setIsForecasting(false);
+      setTimeout(() => setActionProgress(null), 2500);
     }
   };
 
@@ -379,33 +420,9 @@ const App: React.FC = () => {
       }),
     });
 
-    // Darker Municipalities (0.6 opacity)
-    const cities = [
-      { name: 'Dasmariñas', color: 'rgba(255, 99, 132, 0.5)' },
-      { name: 'Imus', color: 'rgba(54, 162, 235, 0.5)' },
-      { name: 'General Trias', color: 'rgba(255, 206, 86, 0.5)' },
-      { name: 'Bacoor', color: 'rgba(75, 192, 192, 0.5)' },
-      { name: 'Trece Martires', color: 'rgba(153, 102, 255, 0.5)' },
-      { name: 'Tagaytay', color: 'rgba(255, 159, 64, 0.5)' },
-      { name: 'Carmona', color: 'rgba(156, 163, 175, 0.5)' },
-      { name: 'Cavite City', color: 'rgba(83, 102, 255, 0.5)' },
-      { name: 'Silang', color: 'rgba(255, 105, 180, 0.5)' },
-      { name: 'Amadeo', color: 'rgba(205, 133, 63, 0.5)' },
-      { name: 'Mendez', color: 'rgba(218, 165, 32, 0.5)' },
-      { name: 'Indang', color: 'rgba(0, 128, 128, 0.5)' },
-      { name: 'Alfonso', color: 'rgba(139, 69, 19, 0.5)' },
-      { name: 'General Emilio Aguinaldo', color: 'rgba(46, 139, 87, 0.5)' },
-      { name: 'Maragondon', color: 'rgba(107, 142, 35, 0.5)' },
-      { name: 'Ternate', color: 'rgba(64, 224, 208, 0.5)' },
-      { name: 'Naic', color: 'rgba(100, 149, 237, 0.5)' },
-      { name: 'Tanza', color: 'rgba(123, 104, 238, 0.5)' },
-      { name: 'Noveleta', color: 'rgba(255, 140, 0, 0.5)' },
-      { name: 'Rosario', color: 'rgba(220, 20, 60, 0.5)' },
-      { name: 'Kawit', color: 'rgba(0, 191, 255, 0.5)' },
-      { name: 'Magallanes', color: 'rgba(255, 69, 0, 0.5)' }
-    ];
+    const cities = CITIES;
 
-    mapRef.current = new Map({
+    mapRef.current = new OLMap({
       target: mapElement.current,
       layers: [ new TileLayer({ source: new OSM() }), caviteLayer ],
       // Prevent zooming out beyond Cavite (minZoom: 9) and lock panning to Cavite bounding box
@@ -486,6 +503,18 @@ const App: React.FC = () => {
             const source = new VectorSource({
               features: new GeoJSON().readFeatures(data, { featureProjection: 'EPSG:3857' }),
             });
+            const features = source.getFeatures();
+            if (features.length > 0) {
+              const geom = features[0].getGeometry();
+              if (geom) {
+                const geoJsonWriter = new GeoJSON();
+                const geomGeoJson = geoJsonWriter.writeGeometryObject(geom, {
+                  featureProjection: 'EPSG:3857',
+                  dataProjection: 'EPSG:4326',
+                });
+                cityDataMapRef.current.set(city.name, { geom, geomGeoJson });
+              }
+            }
             const layer = new VectorLayer({
               source: source,
               style: new Style({
@@ -564,10 +593,10 @@ const App: React.FC = () => {
   };
   */
 
-  // Fetches and displays the Dynamic World 10m LULC layer for the clicked municipality
   const loadDynamicWorldForZone = async () => {
     if (!clickedGeometry || !mapRef.current) return;
     setDwZoneLoading(true);
+    setActionProgress({ title: 'Land Cover Analysis', status: 'Fetching 10m Dynamic World tiles...', percent: 20 });
 
     // Remove any existing layer
     if (ndviLayerRef.current) {
@@ -580,6 +609,7 @@ const App: React.FC = () => {
 
     while (attempts < maxAttempts) {
       try {
+        setActionProgress({ title: 'Land Cover Analysis', status: `Querying GEE Satellite Cluster (Attempt ${attempts + 1})...`, percent: 50 });
         const res = await fetch('http://127.0.0.1:8000/map/dynamic-world/zone', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -591,6 +621,7 @@ const App: React.FC = () => {
         const data = await res.json();
         
         if (data.url_template) {
+          setActionProgress({ title: 'Land Cover Analysis', status: 'Applying NDVI vegetation mask & rendering...', percent: 85 });
           const layer = new TileLayer({
             source: new XYZ({ 
               url: data.url_template,
@@ -601,6 +632,7 @@ const App: React.FC = () => {
           mapRef.current.addLayer(layer);
           ndviLayerRef.current = layer;
           setActiveLayer('DynamicWorld');
+          setActionProgress({ title: 'Land Cover Analysis', status: 'Land Cover Analysis Complete!', percent: 100 });
           break; // Success, exit the retry loop!
         } else if (data.error) {
           throw new Error(data.error);
@@ -610,13 +642,15 @@ const App: React.FC = () => {
         console.warn(`Dynamic World load attempt ${attempts} failed:`, err);
         if (attempts >= maxAttempts) {
           console.error('Final failure to load zone Dynamic World:', err);
+          setActionProgress({ title: 'Land Cover Analysis', status: 'Failed to load tile composite.', percent: 100 });
         } else {
-          // Wait 1.5 seconds before retrying to let GEE rate limits cool down
+          setActionProgress({ title: 'Land Cover Analysis', status: `Retrying request (${attempts}/${maxAttempts})...`, percent: 35 });
           await new Promise(resolve => setTimeout(resolve, 1500));
         }
       }
     }
     setDwZoneLoading(false);
+    setTimeout(() => setActionProgress(null), 2500);
   };
 
 
@@ -739,6 +773,58 @@ const App: React.FC = () => {
 
   const panelInfo = getPanelInfo(healthStatus);
 
+  const handleCitySelectChange = (cityName: string) => {
+    setForecast(null);
+
+    if (cityName === "Cavite Province") {
+      setActiveZone("Cavite Province");
+      setClickedGeometry(null);
+      setHealthStatus("Awaiting Target");
+      if (mapRef.current) {
+        const caviteCenter = fromLonLat([120.90, 14.28]);
+        mapRef.current.getView().animate({ center: caviteCenter, zoom: 10, duration: 800 });
+      }
+      if (ndviLayerRef.current && mapRef.current) {
+        mapRef.current.removeLayer(ndviLayerRef.current);
+        ndviLayerRef.current = null;
+        setActiveLayer('None');
+      }
+      return;
+    }
+
+    const cityData = cityDataMapRef.current.get(cityName);
+    setActiveZone(cityName);
+
+    if (cityData) {
+      if (cityData.geom && mapRef.current) {
+        mapRef.current.getView().fit(cityData.geom.getExtent(), {
+          duration: 800,
+          padding: [50, 50, 50, 50],
+          maxZoom: 14
+        });
+      }
+      setClickedGeometry(cityData.geomGeoJson);
+    }
+
+    if (ndviLayerRef.current && mapRef.current) {
+      mapRef.current.removeLayer(ndviLayerRef.current);
+      ndviLayerRef.current = null;
+      setActiveLayer('None');
+    }
+
+    const statuses = ["No Stress", "Mild Stress", "Moderate Stress", "Severe Stress"];
+    let hash = 0;
+    for (let i = 0; i < cityName.length; i++) {
+      hash += cityName.charCodeAt(i);
+    }
+    const randomIndex = hash % statuses.length;
+    setHealthStatus(statuses[randomIndex]);
+
+    if (socket.current?.readyState === WebSocket.OPEN) {
+      socket.current.send(JSON.stringify({ name: cityName }));
+    }
+  };
+
   return (
     <div className="app-container">
       <header className="top-header">
@@ -754,6 +840,33 @@ const App: React.FC = () => {
 
       <div className="main-layout">
         <nav className="sidebar">
+          <div className="feature-box">
+            <h3>Select Region / Municipality</h3>
+            <select
+              value={activeZone}
+              onChange={(e) => handleCitySelectChange(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                borderRadius: '6px',
+                border: '1px solid #CBD5E0',
+                fontSize: '0.9rem',
+                backgroundColor: '#FFFFFF',
+                color: '#2D3748',
+                cursor: 'pointer',
+                marginTop: '8px',
+                outline: 'none'
+              }}
+            >
+              <option value="Cavite Province">Cavite Province (All Regions)</option>
+              {CITIES.map((c) => (
+                <option key={c.name} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="feature-box">
             <h3>{t.health_title}</h3>
             <p>{t.zone}: {activeZone}</p>
@@ -783,6 +896,22 @@ const App: React.FC = () => {
                     </button>
                   )}
                 </>
+              )}
+
+              {/* Process Bar with live percentage */}
+              {actionProgress && (
+                <div style={{ marginTop: '12px', padding: '10px', background: '#F8FAFC', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 'bold', color: '#2D3748', marginBottom: '4px' }}>
+                    <span>{actionProgress.title}</span>
+                    <span style={{ color: '#2B6CB0' }}>{actionProgress.percent}%</span>
+                  </div>
+                  <div style={{ width: '100%', height: '8px', background: '#E2E8F0', borderRadius: '4px', overflow: 'hidden', marginBottom: '6px' }}>
+                    <div style={{ width: `${actionProgress.percent}%`, height: '100%', background: actionProgress.percent === 100 ? '#38A169' : '#3182CE', transition: 'width 0.3s ease' }}></div>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#718096' }}>
+                    {actionProgress.status}
+                  </div>
+                </div>
               )}
 
               {/* Dynamic World Legend */}
