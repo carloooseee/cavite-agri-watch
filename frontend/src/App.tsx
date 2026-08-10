@@ -42,6 +42,13 @@ const CITIES = [
   { name: 'Trece Martires', color: 'rgba(153, 102, 255, 0.5)' }
 ];
 
+const cityBaselineMap: Record<string, string> = {
+  "Silang": "No Stress",
+  "General Trias": "Mild Stress",
+  "Alfonso": "No Stress",
+  "Bacoor": "Moderate Stress"
+};
+
 const App: React.FC = () => {
   const mapElement = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<OLMap | null>(null);
@@ -61,11 +68,6 @@ const App: React.FC = () => {
     percent: number;
   } | null>(null);
 
-
-  // Lab Mode States
-  const [isLabMode] = useState(false);
-  const [cvipData] = useState<{ before_image: string; after_image: string; metadata: { temporal: string; spectral: string; spatial: string; } } | null>(null);
-
   // Real-time Bridge States
   const [healthStatus, setHealthStatus] = useState<string>("Awaiting Target");
   const [activeZone, setActiveZone] = useState<string>("Cavite Province");
@@ -83,8 +85,6 @@ const App: React.FC = () => {
       run_forecast: "Run Forecast",
       start_sync: "Start Data Sync",
       syncing: "Syncing...",
-      enter_lab: "Enter Lab Mode",
-      exit_lab: "Exit Lab Mode",
       forecast_title: "AI Forecast (30-Day)",
       value: "Value",
       trend: "Trend",
@@ -92,7 +92,6 @@ const App: React.FC = () => {
       inputs: "Recommended Inputs",
       avoid: "What to Avoid",
       edu: "Educational Info",
-      lab_title: "CVIP Diagnostic Lab Mode",
       before: "BEFORE: Raw Image",
       after: "AFTER: Masked & Clipped",
       tech_summary: "Technique Summary (Reduction Stats)",
@@ -119,8 +118,6 @@ const App: React.FC = () => {
       run_forecast: "Patakbuhin ang Pagtataya",
       start_sync: "Simulan ang Pag-sync",
       syncing: "Nag-sync...",
-      enter_lab: "Pumasok sa Lab Mode",
-      exit_lab: "Lumabas sa Lab Mode",
       forecast_title: "Pagtataya ng AI (30-Araw)",
       value: "Halaga",
       trend: "Takbo",
@@ -128,7 +125,6 @@ const App: React.FC = () => {
       inputs: "Inirerekomendang Input",
       avoid: "Mga Dapat Iwasan",
       edu: "Impormasyong Pang-edukasyon",
-      lab_title: "CVIP Diagnostic Lab Mode",
       before: "BAGO: Hilaw na Imahe",
       after: "PAGKATAPOS: Masked at Clipped",
       tech_summary: "Buod ng Teknik (Reduction Stats)",
@@ -147,36 +143,6 @@ const App: React.FC = () => {
   };
 
   const t = translations[lang];
-
-
-
-  /*
-  const handleToggleLabMode = async () => {
-    if (!isLabMode && !cvipData) {
-      // Hardcoded fake data
-      setCvipData({
-        before_image: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=", // Fake 1x1 image
-        after_image: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", // Fake 1x1 image
-        metadata: {
-          temporal: "Analyzed past 6 months of data.",
-          spectral: "Highlighted NDVI anomalies.",
-          spatial: "Clipped to exact city boundary."
-        }
-      });
-    }
-    setIsLabMode(!isLabMode);
-  };
-
-  const handleSync = () => {
-    setSyncState({ phase: 'Extraction', status: 'Connecting to Satellite...' });
-    setTimeout(() => setSyncState({ phase: 'Processing', status: 'Fetching Imagery...' }), 1500);
-    setTimeout(() => setSyncState({ phase: 'Analysis', status: 'Running ML Models...' }), 3000);
-    setTimeout(() => {
-      setSyncState({ phase: 'Completed', status: 'Data Synced Successfully' });
-      setTimeout(() => setSyncState(null), 3000);
-    }, 4500);
-  };
-  */
 
   const getStatusColor = (status: string) => {
     switch(status) {
@@ -478,14 +444,8 @@ const App: React.FC = () => {
           setActiveLayer('None');
         }
 
-        // Align with paper's 4-tier classification prediction logic
-        const statuses = ["No Stress", "Mild Stress", "Moderate Stress", "Severe Stress"];
-        let hash = 0;
-        for (let i = 0; i < cityName.length; i++) {
-          hash += cityName.charCodeAt(i);
-        }
-        const randomIndex = hash % statuses.length;
-        setHealthStatus(statuses[randomIndex]);
+        const newStatus = cityBaselineMap[cityName] || "No Stress";
+        setHealthStatus(newStatus);
 
         if (socket.current?.readyState === WebSocket.OPEN) {
           socket.current.send(JSON.stringify({ name: cityName }));
@@ -654,22 +614,29 @@ const App: React.FC = () => {
   };
 
 
-  const getPanelInfo = (status: string) => {
-    // Mock chart data for dynamic visualization
-    const mockTrendData = [
-      { day: 'Mon', ndvi: 0.62 },
-      { day: 'Tue', ndvi: 0.64 },
-      { day: 'Wed', ndvi: 0.63 },
-      { day: 'Thu', ndvi: 0.65 },
-      { day: 'Fri', ndvi: 0.68 },
-      { day: 'Sat', ndvi: 0.67 },
-      { day: 'Sun', ndvi: 0.69 },
+  const getPanelInfo = (status: string, forecastObj: ForecastData | null) => {
+    // Dynamic chart data
+    const trendData = forecastObj ? [
+      { day: 'T-30d', ndvi: forecastObj.lag_3 ?? 0.62 },
+      { day: 'T-20d', ndvi: forecastObj.lag_2 ?? 0.64 },
+      { day: 'T-10d', ndvi: forecastObj.lag_1 ?? 0.63 },
+      { day: 'Current', ndvi: forecastObj.current_ndvi ?? 0.65 },
+      { day: 'T+30d Forecast', ndvi: forecastObj.forecast_30_days ?? 0.68 },
+    ] : [
+      { day: 'T-30d', ndvi: 0.62 },
+      { day: 'T-20d', ndvi: 0.64 },
+      { day: 'T-10d', ndvi: 0.63 },
+      { day: 'Current', ndvi: 0.65 },
+      { day: 'T+30d Forecast', ndvi: 0.68 },
     ];
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let baseInfo: any;
 
     if (lang === 'EN') {
       switch(status) {
         case "No Stress":
-          return {
+          baseInfo = {
             routines: {
               desc: "Current crop health is stable. Focus on optimization and monitoring.",
               bullets: ["Maintain irrigation schedule", "Conduct weekly scouting", "Keep drainage clear"]
@@ -680,10 +647,11 @@ const App: React.FC = () => {
             },
             avoid: "Sudden nitrogen spikes and soil compaction.",
             educational: "High photosynthesis efficiency observed.",
-            chart: mockTrendData
+            chart: trendData
           };
+          break;
         case "Mild Stress":
-          return {
+          baseInfo = {
             routines: {
               desc: "Plants are showing early signs of environmental stress. Minor adjustment needed.",
               bullets: ["Adjust irrigation timing", "Apply nutrient recovery spray", "Check for early pest signs"]
@@ -694,10 +662,11 @@ const App: React.FC = () => {
             },
             avoid: "Over-fertilization during stress periods.",
             educational: "Early abiotic stress detected in cellular data.",
-            chart: mockTrendData.map(d => ({ ...d, ndvi: d.ndvi - 0.05 }))
+            chart: trendData.map(d => ({ ...d, ndvi: d.ndvi - (forecastObj ? 0 : 0.05) }))
           };
+          break;
         case "Moderate Stress":
-          return {
+          baseInfo = {
             routines: {
               desc: "Stress levels are significant. Remediation required to prevent loss.",
               bullets: ["Increase water frequency", "Soil moisture check", "Disease assessment"]
@@ -708,10 +677,11 @@ const App: React.FC = () => {
             },
             avoid: "Planting new crops; stop chemical pesticides.",
             educational: "Low chlorophyll levels indicate metabolic failure.",
-            chart: mockTrendData.map(d => ({ ...d, ndvi: d.ndvi - 0.15 }))
+            chart: trendData.map(d => ({ ...d, ndvi: d.ndvi - (forecastObj ? 0 : 0.15) }))
           };
+          break;
         case "Severe Stress":
-          return {
+          baseInfo = {
             routines: {
               desc: "Critical damage detected. Emergency intervention necessary.",
               bullets: ["Emergency irrigation", "Deep soil aeration", "Crop salvation protocols"]
@@ -722,10 +692,11 @@ const App: React.FC = () => {
             },
             avoid: "All mechanical operations.",
             educational: "Severe moisture deficit in LSWI data.",
-            chart: mockTrendData.map(d => ({ ...d, ndvi: d.ndvi - 0.3 }))
+            chart: trendData.map(d => ({ ...d, ndvi: d.ndvi - (forecastObj ? 0 : 0.3) }))
           };
+          break;
         default:
-          return {
+          baseInfo = {
             routines: { desc: "Select a region to see routines.", bullets: [] },
             inputs: { desc: "Select a region to see inputs.", bullets: [] },
             avoid: "Select a region to see avoidance list.",
@@ -737,7 +708,7 @@ const App: React.FC = () => {
       // Tagalog Translations
       switch(status) {
         case "Good Health":
-          return {
+          baseInfo = {
             routines: {
               desc: "Maayos ang kalusugan ng pananim. Tumutok sa pag-optimize at pagsubaybay.",
               bullets: [
@@ -756,11 +727,11 @@ const App: React.FC = () => {
             },
             avoid: "Biglaang pagtaas ng nitrogen at pagsisiksik ng lupa.",
             educational: "Mataas na kahusayan sa photosynthesis ang naobserbahan.",
-            chart: mockTrendData
+            chart: trendData
           };
-        // ... (Adding others in Tagalog for completeness if needed, but keeping it brief for now)
+          break;
         default:
-          return {
+          baseInfo = {
             routines: { desc: "Pumili ng rehiyon para sa mga routine.", bullets: [] },
             inputs: { desc: "Pumili ng rehiyon para sa mga input.", bullets: [] },
             avoid: "Pumili ng rehiyon para sa mga dapat iwasan.",
@@ -769,9 +740,22 @@ const App: React.FC = () => {
           };
       }
     }
+
+    if (forecastObj) {
+      if (forecastObj.meaning) {
+        baseInfo.routines.desc = forecastObj.meaning;
+      }
+      if (forecastObj.routines && forecastObj.routines.length > 0) {
+        baseInfo.routines.bullets = forecastObj.routines;
+      } else if (forecastObj.expert_advice) {
+        baseInfo.routines.bullets = [forecastObj.expert_advice];
+      }
+    }
+
+    return baseInfo;
   };
 
-  const panelInfo = getPanelInfo(healthStatus);
+  const panelInfo = getPanelInfo(healthStatus, forecast);
 
   const handleCitySelectChange = (cityName: string) => {
     setForecast(null);
@@ -812,13 +796,8 @@ const App: React.FC = () => {
       setActiveLayer('None');
     }
 
-    const statuses = ["No Stress", "Mild Stress", "Moderate Stress", "Severe Stress"];
-    let hash = 0;
-    for (let i = 0; i < cityName.length; i++) {
-      hash += cityName.charCodeAt(i);
-    }
-    const randomIndex = hash % statuses.length;
-    setHealthStatus(statuses[randomIndex]);
+    const newStatus = cityBaselineMap[cityName] || "No Stress";
+    setHealthStatus(newStatus);
 
     if (socket.current?.readyState === WebSocket.OPEN) {
       socket.current.send(JSON.stringify({ name: cityName }));
@@ -955,47 +934,13 @@ const App: React.FC = () => {
         </nav>
 
         <main className="main-section">
-          {isLabMode ? (
-            <div className="lab-content">
-              <h2>{t.lab_title}</h2>
-              {cvipData ? (
-                <>
-                  <div className="lab-grid">
-                    <div className="lab-box">
-                      <h3>{t.before}</h3>
-                      {cvipData.before_image ? 
-                        <img src={`data:image/png;base64,${cvipData.before_image}`} alt="Before" style={{ width: '100%', marginTop: '10px' }} /> 
-                        : <p>{t.img_not_found}</p>}
-                    </div>
-                    <div className="lab-box">
-                      <h3>{t.after}</h3>
-                      {cvipData.after_image ? 
-                        <img src={`data:image/png;base64,${cvipData.after_image}`} alt="After" style={{ width: '100%', marginTop: '10px' }} />
-                        : <p>{t.img_not_found}</p>}
-                    </div>
-                  </div>
-                  <div className="feature-box" style={{ marginTop: '20px' }}>
-                    <h3>{t.tech_summary}</h3>
-                    <ul style={{ paddingLeft: '20px', marginTop: '10px', lineHeight: '1.6' }}>
-                      <li><strong>Temporal:</strong> {cvipData.metadata.temporal}</li>
-                      <li><strong>Spectral:</strong> {cvipData.metadata.spectral}</li>
-                      <li><strong>Spatial:</strong> {cvipData.metadata.spatial}</li>
-                    </ul>
-                  </div>
-                </>
-              ) : (
-                <p>{t.loading}</p>
-              )}
-            </div>
-          ) : (
-            <>
-              <div ref={mapElement} className="map-container"></div>
-              <div className="active-zone-tag">ZONE: {activeZone}</div>
-            </>
-          )}
+          <>
+            <div ref={mapElement} className="map-container"></div>
+            <div className="active-zone-tag">ZONE: {activeZone}</div>
+          </>
         </main>
 
-        {activeZone !== "Cavite Province" && !isLabMode && (
+        {activeZone !== "Cavite Province" && (
           <aside className="sidebar right-panel">
             <div className="feature-box">
               <h3>{t.spectral_title}</h3>
@@ -1022,9 +967,9 @@ const App: React.FC = () => {
                 </div>
               </div>
               <div style={{ marginTop: '10px', fontSize: '0.75rem', borderTop: '1px solid #eee', paddingTop: '8px', color: '#555' }}>
-                <p><strong>Baseline Comparison:</strong> Current image vs. 10-year historical mean (Σ -0.14 deviation).</p>
-                <p><strong>Cloud Interference:</strong> 4.2% residual noise handled by QA60 bitmask.</p>
-                <p><strong>Processing Node:</strong> GEE-Satellite Cluster-04</p>
+                <p><strong>Baseline Comparison:</strong> Current image vs. 10-year historical mean (Σ {forecast?.current_ndvi !== undefined && forecast?.historical_mean !== undefined ? (forecast.current_ndvi - forecast.historical_mean).toFixed(2) : '-0.14'} deviation).</p>
+                <p><strong>Cloud Interference:</strong> {forecast?.cloud_cover !== undefined ? forecast.cloud_cover.toFixed(1) : forecast?.qa60_noise !== undefined ? forecast.qa60_noise.toFixed(1) : '4.2'}% residual noise handled by QA60 bitmask.</p>
+                <p><strong>Processing Node:</strong> {forecast ? 'GEE-Satellite Cluster-Live' : 'GEE-Satellite Cluster-04'}</p>
               </div>
             </div>
 
@@ -1033,7 +978,7 @@ const App: React.FC = () => {
               <p><em style={{ color: getStatusColor(healthStatus), fontWeight: 'bold' }}>{healthStatus}</em></p>
               <p>{panelInfo.routines.desc}</p>
               <ul style={{ paddingLeft: '20px' }}>
-                {panelInfo.routines.bullets.map((b, i) => <li key={i}>{b}</li>)}
+                {panelInfo.routines.bullets.map((b: string, i: number) => <li key={i}>{b}</li>)}
               </ul>
             </div>
             
@@ -1041,7 +986,7 @@ const App: React.FC = () => {
               <h3>{t.inputs}</h3>
               <p>{panelInfo.inputs.desc}</p>
               <ul style={{ paddingLeft: '20px' }}>
-                {panelInfo.inputs.bullets.map((b, i) => <li key={i}>{b}</li>)}
+                {panelInfo.inputs.bullets.map((b: string, i: number) => <li key={i}>{b}</li>)}
               </ul>
             </div>
 

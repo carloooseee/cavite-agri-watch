@@ -16,6 +16,14 @@ export interface ForecastData {
     city?: string;
     meaning?: string;
     expert_advice?: string;
+    routines?: string[];
+    lag_1?: number;
+    lag_2?: number;
+    lag_3?: number;
+    cloud_cover?: number;
+    qa60_noise?: number;
+    historical_mean?: number;
+    health_status?: string;
     error?: string;
     message?: string;
 }
