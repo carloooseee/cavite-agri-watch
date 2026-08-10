@@ -3,3 +3,4 @@ uvicorn[standard]
 earthengine-api
 pandas
 scikit-learn
+numpy

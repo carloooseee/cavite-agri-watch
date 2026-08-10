@@ -16,6 +16,8 @@ export interface ForecastData {
     city?: string;
     meaning?: string;
     expert_advice?: string;
+    error?: string;
+    message?: string;
 }
 
 export const AgriApi = {
@@ -34,9 +36,21 @@ export const AgriApi = {
     },
 
 
-    // Get the Machine Learning "Foresee" data
+    // Get the Machine Learning "Foresee" data (Fallback/mock)
     getPrediction: async (cityName: string = "Cavite Province"): Promise<ForecastData> => {
         const response = await fetch(`${BASE_URL}/predict/ndvi?city_name=${encodeURIComponent(cityName)}`);
+        return await response.json();
+    },
+
+    // Get the REAL calculated indices via GEE reduceRegion for a specific polygon
+    getZonePrediction: async (geometry: Record<string, unknown>, cityName: string = "Unknown Area"): Promise<ForecastData> => {
+        const response = await fetch(`${BASE_URL}/predict/indices/zone`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ geometry, city_name: cityName })
+        });
         return await response.json();
     },
 

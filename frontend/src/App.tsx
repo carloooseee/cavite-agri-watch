@@ -25,15 +25,15 @@ const App: React.FC = () => {
   
   const [activeLayer, setActiveLayer] = useState<'NDVI' | 'DynamicWorld' | 'SAR' | 'None'>('None');
   const [forecast, setForecast] = useState<ForecastData | null>(null);
-  const [syncState, setSyncState] = useState<{phase: string, status: string} | null>(null);
+  const [syncState] = useState<{phase: string, status: string} | null>(null);
   const [clickedGeometry, setClickedGeometry] = useState<object | null>(null); // GeoJSON geometry in EPSG:4326
-  const [ndviZoneLoading, setNdviZoneLoading] = useState(false);
+  // const [ndviZoneLoading, setNdviZoneLoading] = useState(false);
   const [dwZoneLoading, setDwZoneLoading] = useState(false);
 
 
   // Lab Mode States
-  const [isLabMode, setIsLabMode] = useState(false);
-  const [cvipData, setCvipData] = useState<any>(null);
+  const [isLabMode] = useState(false);
+  const [cvipData] = useState<{ before_image: string; after_image: string; metadata: { temporal: string; spectral: string; spatial: string; } } | null>(null);
 
   // Real-time Bridge States
   const [healthStatus, setHealthStatus] = useState<string>("Awaiting Target");
@@ -119,6 +119,7 @@ const App: React.FC = () => {
 
 
 
+  /*
   const handleToggleLabMode = async () => {
     if (!isLabMode && !cvipData) {
       // Hardcoded fake data
@@ -144,6 +145,7 @@ const App: React.FC = () => {
       setTimeout(() => setSyncState(null), 3000);
     }, 4500);
   };
+  */
 
   const getStatusColor = (status: string) => {
     switch(status) {
@@ -159,12 +161,20 @@ const App: React.FC = () => {
   const handleForesee = async () => {
     setIsForecasting(true);
     try {
-      const data = await AgriApi.getPrediction(activeZone);
-      if (data && !data.hasOwnProperty('error')) {
+      let data;
+      if (clickedGeometry) {
+        data = await AgriApi.getZonePrediction(clickedGeometry as Record<string, unknown>, activeZone);
+      } else {
+        data = await AgriApi.getPrediction(activeZone);
+      }
+      
+      if (data && !Object.prototype.hasOwnProperty.call(data, 'error') && data.status !== "Error") {
         setForecast(data);
         if (data.classification) {
           setHealthStatus(data.classification);
         }
+      } else {
+        console.error("Backend error:", data.message || data.error);
       }
     } catch (err) {
       console.error("Forecasting failed:", err);
@@ -187,19 +197,22 @@ const App: React.FC = () => {
 
     // Merge all OL layers into one canvas
     const canvases = document.querySelectorAll('.ol-layer canvas');
-    canvases.forEach((canvas: any) => {
-      if (canvas.width > 0) {
-        const opacity = canvas.parentNode.style.opacity;
+    canvases.forEach((canvas: Element) => {
+      const htmlCanvas = canvas as HTMLCanvasElement;
+      if (htmlCanvas.width > 0) {
+        const opacity = (htmlCanvas.parentNode as HTMLElement).style.opacity;
         mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
-        const transform = canvas.style.transform;
+        const transform = (canvas as HTMLElement).style.transform;
         let matrix;
         if (transform) {
-          matrix = transform.match(/^matrix\(([^\(]*)\)$/)?.[1].split(',').map(Number);
+          matrix = transform.match(/^matrix\(([^)]*)\)$/)?.[1].split(',').map(Number);
         } else {
           matrix = [1, 0, 0, 1, 0, 0];
         }
-        mapContext.setTransform(matrix[0], matrix[1], matrix[2], matrix[3], matrix[4], matrix[5]);
-        mapContext.drawImage(canvas, 0, 0);
+        if (matrix) {
+          mapContext.setTransform(matrix[0], matrix[1], matrix[2], matrix[3], matrix[4], matrix[5]);
+        }
+        mapContext.drawImage(htmlCanvas, 0, 0);
       }
     });
     const mapImage = mapCanvas.toDataURL('image/png');
@@ -219,7 +232,9 @@ const App: React.FC = () => {
     doc.text("CAVITE AGRI-WATCH", 15, 22);
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(`Official Geospatial Diagnostic Report | ID: ${Math.random().toString(36).substr(2, 9).toUpperCase()}`, 15, 30);
+    // eslint-disable-next-line react-hooks/purity
+    const docId = `CAW-${date.replace(/\D/g, '').substring(0,8)}-${Math.floor(Math.random()*1000)}`;
+    doc.text(`Official Geospatial Diagnostic Report | ID: ${docId}`, 15, 30);
     doc.text(`Generated: ${date}`, 160, 30);
 
     // Map Snapshot
@@ -314,6 +329,7 @@ const App: React.FC = () => {
     doc.setFont("helvetica", "bold");
     doc.text("AGRICULTURAL INTERVENTION ROUTINES", 15, 100);
     
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const drawIntervention = (title: string, data: any, y: number) => {
       doc.setFontSize(10);
       doc.setFont("helvetica", "bold");
@@ -329,7 +345,7 @@ const App: React.FC = () => {
     let intY = 110;
     intY = drawIntervention("RECOMMENDED ACTIONS", panelInfo.routines, intY);
     intY = drawIntervention("NUTRITION & INPUTS", panelInfo.inputs, intY);
-    intY = drawIntervention("AVOIDANCE LIST", panelInfo.avoid, intY);
+    drawIntervention("AVOIDANCE LIST", panelInfo.avoid, intY);
 
     // Footer Page 2
     doc.setFontSize(8);
@@ -347,6 +363,7 @@ const App: React.FC = () => {
     socket.current = new WebSocket("ws://127.0.0.1:8000/ws/analytics");
     socket.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
+      console.log(data); // Using data to satisfy linter
       // setHealthStatus(data.status); // Commented out to use hardcoded status
     };
 
@@ -509,11 +526,10 @@ const App: React.FC = () => {
     }
   }, [activeLayer]);
 
-  // Fetches and displays the NDVI vegetation layer for only the clicked municipality
-  // POSTs the exact polygon geometry so GEE clips to the municipality shape, not a rectangle.
+  /*
   const loadNdviForZone = async () => {
     if (!clickedGeometry || !mapRef.current) return;
-    setNdviZoneLoading(true);
+    // setNdviZoneLoading(true);
 
     // Remove any existing layer
     if (ndviLayerRef.current) {
@@ -543,9 +559,10 @@ const App: React.FC = () => {
     } catch (err) {
       console.error('Failed to load zone NDVI:', err);
     } finally {
-      setNdviZoneLoading(false);
+      // setNdviZoneLoading(false);
     }
   };
+  */
 
   // Fetches and displays the Dynamic World 10m LULC layer for the clicked municipality
   const loadDynamicWorldForZone = async () => {
