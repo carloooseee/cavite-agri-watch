@@ -1,0 +1,51 @@
+name: Weekly Satellite Data Extraction Pipeline
+
+on:
+  # Runs automatically at 00:00 every Sunday
+  schedule:
+    - cron: '0 0 * * 0'
+  
+  # Also allows you to trigger the pipeline manually from the GitHub website
+  workflow_dispatch:
+
+jobs:
+  extract_data:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: 📦 Install Dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pillow
+
+      - name: 🔑 Authenticate with Google Earth Engine
+        env:
+          # In the future, we will add your service account JSON to GitHub Secrets
+          # and decode it here so the script can log in!
+          GEE_CREDENTIALS: ${{ secrets.GEE_SERVICE_ACCOUNT }}
+        run: |
+          cd backend
+          echo "$GEE_CREDENTIALS" > cavite-agri-watch-7717292883ca.json
+
+      - name: 🛰️ Run Earth Engine Extraction Pipeline
+        run: |
+          cd backend
+          # In the future, we will run the extraction script here
+          # python gee_extraction.py
+          # python export_images.py
+          echo "Pipeline setup complete. Waiting for credentials configuration to enable extraction."
+
+      # Future Step: Save or upload the generated patches to your database/storage!
+      # - name: 💾 Upload Results
+      #   ...
