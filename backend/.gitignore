@@ -118,3 +118,7 @@ service-account*.json
 
 # SQLite databases
 *.sqlite3
+
+# Generated Datasets (Too heavy to commit to Git)
+data/cvip_output/
+*.npy

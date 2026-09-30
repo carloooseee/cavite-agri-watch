@@ -205,9 +205,9 @@ def extract_and_save_patches(ee_image, cavite_geometry, patch_size=64,
     print(f"\n[Spatial Patching] Extracting {patch_size}x{patch_size} patches...")
 
     # Sample the entire bounded region as a pixel rectangle from GEE
-    # defaultValue=0 fills any masked (cloud/boundary) pixels with 0
     pixel_data = (
         ee_image
+        .reproject(crs='EPSG:4326', scale=120)
         .sampleRectangle(region=cavite_geometry, defaultValue=0)
         .getInfo()
     )
