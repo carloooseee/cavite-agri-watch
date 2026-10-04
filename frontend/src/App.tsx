@@ -62,12 +62,19 @@ const App: React.FC = () => {
   const [healthStatus, setHealthStatus] = useState<string>("Awaiting Target");
   const [activeZone, setActiveZone] = useState<string>("Cavite Province");
   const [lang, setLang] = useState<'EN' | 'TL'>('EN');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  useEffect(() => {
+    document.body.className = theme;
+  }, [theme]);
 
   const translations = {
     EN: {
-      title: "Cavite Agri-Watch (Functional Prototype)",
-      status_online: "SYSTEM STATUS: ONLINE",
-      bridge_active: "Bridge: Active",
+      title: "Agricultural Watch",
+      status_system: "SYSTEM STATUS:",
+      status_online: "ONLINE",
+      bridge: "Bridge:",
+      bridge_active: "Active",
       health_title: "Health Status",
       zone: "Zone",
       status: "Status",
@@ -98,9 +105,11 @@ const App: React.FC = () => {
       }
     },
     TL: {
-      title: "Cavite Agri-Watch (Functional na Prototype)",
-      status_online: "KATAYUAN NG SISTEMA: ONLINE",
-      bridge_active: "Bridge: Aktibo",
+      title: "Agricultural Watch",
+      status_system: "KATAYUAN NG SISTEMA:",
+      status_online: "ONLINE",
+      bridge: "Bridge:",
+      bridge_active: "Aktibo",
       health_title: "Katayuan ng Kalusugan",
       zone: "Rehiyon",
       status: "Katayuan",
@@ -880,13 +889,21 @@ const App: React.FC = () => {
     <div className="app-container">
       <header className="top-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1>{t.title}</h1>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <h1>{t.title}</h1>
+            <span style={{ fontSize: '0.75rem', backgroundColor: '#E2E8F0', padding: '2px 6px', borderRadius: '4px', color: '#4A5568', fontWeight: 'bold' }}>{lang === 'EN' ? 'Functional Prototype' : 'Functional na Prototype'}</span>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="btn-secondary" style={{ marginRight: '10px' }}>
+              {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+            </button>
             <button onClick={() => setLang('EN')} className={lang === 'EN' ? 'btn-primary' : ''}>EN</button>
             <button onClick={() => setLang('TL')} className={lang === 'TL' ? 'btn-primary' : ''}>TL</button>
           </div>
         </div>
-        <div style={{ fontSize: '0.9rem' }}>{t.status_online} | {t.bridge_active}</div>
+        <div style={{ fontSize: '0.9rem' }}>
+          {t.status_system} <span style={{ color: '#00FF88', fontWeight: 'bold' }}>{t.status_online}</span> | {t.bridge} <span style={{ color: '#00FF88', fontWeight: 'bold' }}>{t.bridge_active}</span>
+        </div>
       </header>
 
       <div className="main-layout">
@@ -931,7 +948,7 @@ const App: React.FC = () => {
               disabled={isForecasting}
               style={{ width: '100%' }}
             >
-              {isForecasting ? '⏳ Foreseeing...' : t.run_forecast}
+              {isForecasting ? 'Foreseeing...' : t.run_forecast}
             </button>
 
             {activeZone !== "Cavite Province" && (
@@ -941,7 +958,7 @@ const App: React.FC = () => {
                 disabled={isSatelliteLoading}
                 style={{ width: '100%' }}
               >
-                {isSatelliteLoading ? '⏳ Loading...' : showSatellite ? 'Hide Satellite Image' : 'View Satellite Image'}
+                {isSatelliteLoading ? 'Loading...' : showSatellite ? 'Hide Satellite Image' : 'View Satellite Image'}
               </button>
             )}
 
