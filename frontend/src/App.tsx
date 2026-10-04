@@ -403,8 +403,8 @@ const App: React.FC = () => {
     const caviteLayer = new VectorLayer({
       source: new VectorSource({ url: '/geojson/cavite.geojson', format: new GeoJSON() }),
       style: new Style({
-        fill: new Fill({ color: 'rgba(0, 0, 0, 0.02)' }),
-        stroke: new Stroke({ color: '#ccc', width: 1 }),
+        fill: new Fill({ color: 'rgba(0, 0, 0, 0.05)' }),
+        stroke: new Stroke({ color: '#888', width: 1 }),
       }),
     });
 
@@ -412,9 +412,8 @@ const App: React.FC = () => {
 
     mapRef.current = new OLMap({
       target: mapElement.current,
-      layers: [ new TileLayer({ source: new OSM() }), caviteLayer ],
-      // Prevent zooming out beyond Cavite (minZoom: 9) and lock panning to Cavite bounding box
-      view: new View({ center: caviteCenter, zoom: 10, minZoom: 9, extent: caviteExtent }),
+      layers: [ caviteLayer ],
+      view: new View({ center: caviteCenter, zoom: 10, minZoom: 9 }),
     });
 
     // 2. Neon "Scan Area" Highlight Interaction
