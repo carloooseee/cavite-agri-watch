@@ -4,7 +4,6 @@ import 'ol/ol.css';
 import OLMap from 'ol/Map';
 import View from 'ol/View';
 import TileLayer from 'ol/layer/Tile';
-import OSM from 'ol/source/OSM';
 import { fromLonLat, transformExtent } from 'ol/proj';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
@@ -146,6 +145,46 @@ const App: React.FC = () => {
   };
 
   const [isForecasting, setIsForecasting] = useState(false);
+  const satelliteLayerRef = useRef<TileLayer<XYZ> | null>(null);
+  const [isSatelliteLoading, setIsSatelliteLoading] = useState(false);
+  const [showSatellite, setShowSatellite] = useState(false);
+
+  const handleToggleSatellite = async () => {
+    if (!mapRef.current || activeZone === "Cavite Province" || !clickedGeometry) return;
+    
+    if (showSatellite) {
+      if (satelliteLayerRef.current) {
+        mapRef.current.removeLayer(satelliteLayerRef.current);
+        satelliteLayerRef.current = null;
+      }
+      setShowSatellite(false);
+      return;
+    }
+
+    setIsSatelliteLoading(true);
+    try {
+      const response = await fetch('http://localhost:8000/map/satellite/zone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(clickedGeometry)
+      });
+      const data = await response.json();
+      
+      if (data.url_template) {
+        const layer = new TileLayer({
+          source: new XYZ({ url: data.url_template }),
+          zIndex: 1, // Above Cavite layer, below NDVI if needed
+        });
+        mapRef.current.addLayer(layer);
+        satelliteLayerRef.current = layer;
+        setShowSatellite(true);
+      }
+    } catch (error) {
+      console.error("Failed to load satellite image:", error);
+    } finally {
+      setIsSatelliteLoading(false);
+    }
+  };
   const handleForesee = async () => {
     setIsForecasting(true);
     setActionProgress({ title: 'AI Analysis & Land Cover', status: 'Connecting to Earth Engine...', percent: 15 });
@@ -879,6 +918,17 @@ const App: React.FC = () => {
             >
               {isForecasting ? '⏳ Foreseeing...' : t.run_forecast}
             </button>
+
+            {activeZone !== "Cavite Province" && (
+              <button 
+                className="btn-primary"
+                onClick={handleToggleSatellite} 
+                disabled={isSatelliteLoading}
+                style={{ width: '100%', marginTop: '10px', backgroundColor: showSatellite ? '#4A5568' : '#2B6CB0' }}
+              >
+                {isSatelliteLoading ? '⏳ Loading...' : showSatellite ? 'Hide Satellite Image' : 'View Satellite Image'}
+              </button>
+            )}
 
             {/* Process Bar with live percentage */}
             {actionProgress && (

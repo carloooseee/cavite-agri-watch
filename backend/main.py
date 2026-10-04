@@ -144,6 +144,46 @@ async def get_zone_ndvi_polygon(request: Request):
     except Exception as e:
         return {"error": str(e)}
 
+@app.post("/map/satellite/zone")
+async def get_zone_satellite_polygon(request: Request):
+    """
+    Returns a true color (RGB) satellite image for the requested geometry.
+    """
+    try:
+        body = await request.json()
+        zone_geom = ee.Geometry(body)
+
+        now = datetime.now()
+        start = (now - timedelta(days=90)).strftime('%Y-%m-%d')
+        end = now.strftime('%Y-%m-%d')
+
+        def mask_clouds(img):
+            qa = img.select('QA60')
+            cloud_mask = 1 << 10
+            cirrus_mask = 1 << 11
+            mask = qa.bitwiseAnd(cloud_mask).eq(0).And(qa.bitwiseAnd(cirrus_mask).eq(0))
+            return img.updateMask(mask).divide(10000).copyProperties(img, ['system:time_start'])
+
+        composite = (
+            ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+            .filterBounds(zone_geom)
+            .filterDate(start, end)
+            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 30))
+            .map(mask_clouds)
+            .median()
+            .clip(zone_geom)
+        )
+
+        viz_params = {
+            'bands': ['B4', 'B3', 'B2'], # True color RGB
+            'min': 0.0,
+            'max': 0.3,
+        }
+
+        map_info = composite.getMapId(viz_params)
+        return {"url_template": map_info['tile_fetcher'].url_format}
+    except Exception as e:
+        return {"error": str(e)}
 # Dynamic World 10m Land Cover palette: Vegetation = Green, Non-Vegetation = Red
 DW_PALETTE = [
     '#FF0000',  # 0: Water (Non-Vegetation -> Red)
