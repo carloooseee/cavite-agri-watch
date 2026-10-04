@@ -148,6 +148,7 @@ const App: React.FC = () => {
   const satelliteLayerRef = useRef<TileLayer<XYZ> | null>(null);
   const [isSatelliteLoading, setIsSatelliteLoading] = useState(false);
   const [showSatellite, setShowSatellite] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const handleToggleSatellite = async () => {
     if (!mapRef.current || activeZone === "Cavite Province" || !clickedGeometry) return;
@@ -962,52 +963,75 @@ const App: React.FC = () => {
             <div className="feature-box">
               <h3 style={{ borderBottom: '1px solid #eee', paddingBottom: '5px', marginBottom: '10px' }}>{t.forecast_title}</h3>
               <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '8px' }}>Target: <strong>{forecast.city || activeZone}</strong></p>
-              <p>{t.value}: <strong>{forecast.forecast_30_days.toFixed(2)}</strong></p>
-              <p>{t.trend}: <span style={{ color: forecast.trend.includes('+') ? '#008000' : '#b22222', fontWeight: 'bold' }}>{forecast.trend}</span></p>
+              
+              <p>Overall Crop Health: <strong style={{ color: getStatusColor(healthStatus) }}>{healthStatus}</strong></p>
+              
               <p style={{ fontSize: '0.85rem', lineHeight: '1.4', marginTop: '8px', borderLeft: '3px solid #00FF88', paddingLeft: '8px', fontStyle: 'italic', color: '#4A5568' }}>
                 "{forecast.meaning}"
               </p>
               <p style={{ fontSize: '0.75rem', marginTop: '10px', color: '#718096', borderTop: '1px dashed #E2E8F0', paddingTop: '8px' }}>
-                <strong>Expert Intervention:</strong> {forecast.expert_advice}
+                <strong>Expert Advice:</strong> {forecast.expert_advice}
               </p>
-              <div className="forecast-meta">
-                <p><small>CNN Softmax Prob: <strong>{((forecast.softmax_prob || 0) * 100).toFixed(1)}%</strong></small></p>
-                <p><small>{forecast.accuracy_metric}</small></p>
-              </div>
+              
+              <button 
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                style={{ marginTop: '10px', background: 'none', border: 'none', color: '#2B6CB0', cursor: 'pointer', textDecoration: 'underline', fontSize: '0.8rem', padding: 0 }}
+              >
+                {showAdvanced ? 'Hide Technical Details' : 'Show Technical Details'}
+              </button>
+
+              {showAdvanced && (
+                <div className="forecast-meta" style={{ marginTop: '10px', background: '#F7FAFC', padding: '10px', borderRadius: '4px', border: '1px solid #E2E8F0' }}>
+                  <p>{t.value} (NDVI): <strong>{forecast.forecast_30_days.toFixed(2)}</strong></p>
+                  <p>{t.trend}: <span style={{ color: forecast.trend.includes('+') ? '#008000' : '#b22222', fontWeight: 'bold' }}>{forecast.trend}</span></p>
+                  <p><small>CNN Softmax Prob: <strong>{((forecast.softmax_prob || 0) * 100).toFixed(1)}%</strong></small></p>
+                  <p><small>{forecast.accuracy_metric}</small></p>
+                  
+                  <div style={{ marginTop: '10px', fontSize: '0.7rem', color: '#4A5568', borderTop: '1px solid #CBD5E0', paddingTop: '8px' }}>
+                    <strong>Standard Agricultural NDVI Ranges:</strong><br/>
+                    • 0.0 - 0.2: Bare soil or severely stressed/dead vegetation<br/>
+                    • 0.2 - 0.4: Moderate stress, early growth, or sparse canopy<br/>
+                    • 0.4 - 0.6: Good health, developing canopy<br/>
+                    • 0.6 - 1.0: Peak health, dense canopy
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {activeZone !== "Cavite Province" && (
             <>
-              <div className="feature-box">
-                <h3>{t.spectral_title}</h3>
-                <div className="spectral-grid">
-                  <div className="spectral-item">
-                    NDVI: <strong>{forecast?.current_ndvi !== undefined ? forecast.current_ndvi.toFixed(2) : '--'}</strong>
-                    <p style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>General vegetation health & greenness.</p>
+              {showAdvanced && (
+                <div className="feature-box">
+                  <h3>{t.spectral_title}</h3>
+                  <div className="spectral-grid">
+                    <div className="spectral-item">
+                      NDVI: <strong>{forecast?.current_ndvi !== undefined ? forecast.current_ndvi.toFixed(2) : '--'}</strong>
+                      <p style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>General vegetation health & greenness.</p>
+                    </div>
+                    <div className="spectral-item">
+                      EVI: <strong>{forecast?.evi !== undefined ? forecast.evi.toFixed(2) : '--'}</strong>
+                      <p style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Atmospheric correction for dense canopy.</p>
+                    </div>
+                    <div className="spectral-item">
+                      NDWI: <strong>{forecast?.ndwi !== undefined ? forecast.ndwi.toFixed(2) : '--'}</strong>
+                      <p style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Surface water and soil moisture levels.</p>
+                    </div>
+                    <div className="spectral-item">
+                      LSWI: <strong>{forecast?.lswi !== undefined ? forecast.lswi.toFixed(2) : '--'}</strong>
+                      <p style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Water content inside plant leaves.</p>
+                    </div>
+                    <div className="spectral-item">
+                      NDRE: <strong>{forecast?.ndre !== undefined ? forecast.ndre.toFixed(2) : '--'}</strong>
+                      <p style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Hidden, early-stage stress detection.</p>
+                    </div>
                   </div>
-                  <div className="spectral-item">
-                    EVI: <strong>{forecast?.evi !== undefined ? forecast.evi.toFixed(2) : '--'}</strong>
-                    <p style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Atmospheric correction for dense canopy.</p>
-                  </div>
-                  <div className="spectral-item">
-                    NDWI: <strong>{forecast?.ndwi !== undefined ? forecast.ndwi.toFixed(2) : '--'}</strong>
-                    <p style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Surface water and soil moisture levels.</p>
-                  </div>
-                  <div className="spectral-item">
-                    LSWI: <strong>{forecast?.lswi !== undefined ? forecast.lswi.toFixed(2) : '--'}</strong>
-                    <p style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Water content inside plant leaves.</p>
-                  </div>
-                  <div className="spectral-item">
-                    NDRE: <strong>{forecast?.ndre !== undefined ? forecast.ndre.toFixed(2) : '--'}</strong>
-                    <p style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Hidden, early-stage stress detection.</p>
+                  <div style={{ marginTop: '10px', fontSize: '0.75rem', borderTop: '1px solid #eee', paddingTop: '8px', color: '#555' }}>
+                    <p><strong>Baseline Comparison:</strong> Current image vs. 10-year historical mean (Σ {forecast?.current_ndvi !== undefined && forecast?.historical_mean !== undefined ? (forecast.current_ndvi - forecast.historical_mean).toFixed(2) : '-0.14'} deviation).</p>
+                    <p><strong>Cloud Interference:</strong> {forecast?.cloud_cover !== undefined ? forecast.cloud_cover.toFixed(1) : forecast?.qa60_noise !== undefined ? forecast.qa60_noise.toFixed(1) : '4.2'}% residual noise handled by QA60 bitmask.</p>
+                    <p><strong>Processing Node:</strong> {forecast ? 'GEE-Satellite Cluster-Live' : 'GEE-Satellite Cluster-04'}</p>
                   </div>
                 </div>
-                <div style={{ marginTop: '10px', fontSize: '0.75rem', borderTop: '1px solid #eee', paddingTop: '8px', color: '#555' }}>
-                  <p><strong>Baseline Comparison:</strong> Current image vs. 10-year historical mean (Σ {forecast?.current_ndvi !== undefined && forecast?.historical_mean !== undefined ? (forecast.current_ndvi - forecast.historical_mean).toFixed(2) : '-0.14'} deviation).</p>
-                  <p><strong>Cloud Interference:</strong> {forecast?.cloud_cover !== undefined ? forecast.cloud_cover.toFixed(1) : forecast?.qa60_noise !== undefined ? forecast.qa60_noise.toFixed(1) : '4.2'}% residual noise handled by QA60 bitmask.</p>
-                  <p><strong>Processing Node:</strong> {forecast ? 'GEE-Satellite Cluster-Live' : 'GEE-Satellite Cluster-04'}</p>
-                </div>
-              </div>
+              )}
 
               <div className="feature-box">
                 <h3>{t.routines}</h3>
@@ -1031,27 +1055,29 @@ const App: React.FC = () => {
                 <p>{panelInfo.avoid}</p>
               </div>
 
-              <div className="feature-box">
-                <h3>Diagnostic Trend</h3>
-                <div style={{ height: '150px', width: '100%' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={panelInfo.chart}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="day" hide />
-                      <YAxis hide domain={[0, 1]} />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="ndvi" stroke={getStatusColor(healthStatus)} strokeWidth={3} dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
+              {showAdvanced && (
+                <div className="feature-box">
+                  <h3>Diagnostic Trend</h3>
+                  <div style={{ height: '150px', width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={panelInfo.chart}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="day" hide />
+                        <YAxis hide domain={[0, 1]} />
+                        <Tooltip />
+                        <Line type="monotone" dataKey="ndvi" stroke={getStatusColor(healthStatus)} strokeWidth={3} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div style={{ marginTop: '10px', fontSize: '0.8rem', borderTop: '1px dashed #ccc', paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>Health Scale:</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '25px' }}>1.0</span> <span>- Peak Health</span></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '25px' }}>0.6</span> <span>- Good Health</span></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '25px' }}>0.4</span> <span>- Stressed</span></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '25px' }}>0.2</span> <span>- Low/Soil</span></div>
+                  </div>
                 </div>
-                <div style={{ marginTop: '10px', fontSize: '0.8rem', borderTop: '1px dashed #ccc', paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>Health Scale:</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '25px' }}>1.0</span> <span>- Peak Health</span></div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '25px' }}>0.6</span> <span>- Good Health</span></div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '25px' }}>0.4</span> <span>- Stressed</span></div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '25px' }}>0.2</span> <span>- Low/Soil</span></div>
-                </div>
-              </div>
+              )}
 
               <button 
                 onClick={handleDownloadReport}
