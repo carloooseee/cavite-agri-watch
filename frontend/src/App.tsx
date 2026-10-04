@@ -535,16 +535,29 @@ const App: React.FC = () => {
                 cityDataMapRef.current.set(city.name, { geom, geomGeoJson });
               }
             }
+            let displayName = city.name;
+            if (displayName === "General Emilio Aguinaldo") {
+              displayName = "General Emilio\nAguinaldo";
+            } else if (displayName === "Trece Martires") {
+              displayName = "Trece\nMartires";
+            } else if (displayName === "General Trias") {
+              displayName = "General\nTrias";
+            } else if (displayName === "Cavite City") {
+              displayName = "Cavite\nCity";
+            }
+
             const layer = new VectorLayer({
               source: source,
               style: new Style({
-                fill: new Fill({ color: city.color }),
+                fill: new Fill({ color: 'rgba(150, 150, 150, 0.4)' }),
                 stroke: new Stroke({ color: 'rgba(0,0,0,0.3)', width: 1 }), // Subtle border
                 text: new Text({
-                  text: city.name, 
-                  font: 'bold 10px sans-serif',
-                  fill: new Fill({ color: '#444' }),
-                  stroke: new Stroke({ color: '#fff', width: 2 })
+                  text: displayName, 
+                  font: 'bold 16px Helvetica, Arial, sans-serif',
+                  fill: new Fill({ color: '#333' }),
+                  stroke: new Stroke({ color: '#fff', width: 2 }),
+                  overflow: true,
+                  placement: 'polygon'
                 })
               }),
             });
@@ -988,12 +1001,33 @@ const App: React.FC = () => {
                   <p><small>CNN Softmax Prob: <strong>{((forecast.softmax_prob || 0) * 100).toFixed(1)}%</strong></small></p>
                   <p><small>{forecast.accuracy_metric}</small></p>
                   
-                  <div style={{ marginTop: '10px', fontSize: '0.7rem', color: '#4A5568', borderTop: '1px solid #CBD5E0', paddingTop: '8px' }}>
-                    <strong>Standard Agricultural NDVI Ranges:</strong><br/>
-                    • 0.0 - 0.2: Bare soil or severely stressed/dead vegetation<br/>
-                    • 0.2 - 0.4: Moderate stress, early growth, or sparse canopy<br/>
-                    • 0.4 - 0.6: Good health, developing canopy<br/>
-                    • 0.6 - 1.0: Peak health, dense canopy
+                  <div style={{ marginTop: '15px', fontSize: '0.75rem', borderTop: '1px solid #CBD5E0', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '2px', color: '#2D3748' }}>NDVI Reference Scale (Vegetation Vigor):</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4A5568' }}>
+                      <div style={{ width: '10px', height: '10px', backgroundColor: '#00FF88', borderRadius: '50%', flexShrink: 0 }}></div>
+                      <span style={{ width: '65px', fontWeight: 'bold' }}>0.7 to 1.0</span> 
+                      <span>Dense Canopy / Peak Vigor (No Stress)</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4A5568' }}>
+                      <div style={{ width: '10px', height: '10px', backgroundColor: '#ADFF2F', borderRadius: '50%', flexShrink: 0 }}></div>
+                      <span style={{ width: '65px', fontWeight: 'bold' }}>0.5 to 0.7</span> 
+                      <span>Moderate Canopy (Healthy/Developing)</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4A5568' }}>
+                      <div style={{ width: '10px', height: '10px', backgroundColor: '#FFFF00', borderRadius: '50%', flexShrink: 0 }}></div>
+                      <span style={{ width: '65px', fontWeight: 'bold' }}>0.3 to 0.5</span> 
+                      <span>Sparse Cover / Early Stage (Mild Stress)</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4A5568' }}>
+                      <div style={{ width: '10px', height: '10px', backgroundColor: '#FF8800', borderRadius: '50%', flexShrink: 0 }}></div>
+                      <span style={{ width: '65px', fontWeight: 'bold' }}>0.1 to 0.3</span> 
+                      <span>Bare Soil / Senescence (Moderate Stress)</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4A5568' }}>
+                      <div style={{ width: '10px', height: '10px', backgroundColor: '#FF0000', borderRadius: '50%', flexShrink: 0 }}></div>
+                      <span style={{ width: '65px', fontWeight: 'bold' }}>&lt; 0.1</span> 
+                      <span>Barren / Water / Urban (Severe Stress)</span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1070,12 +1104,33 @@ const App: React.FC = () => {
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
-                  <div style={{ marginTop: '10px', fontSize: '0.8rem', borderTop: '1px dashed #ccc', paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>Health Scale:</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '25px' }}>1.0</span> <span>- Peak Health</span></div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '25px' }}>0.6</span> <span>- Good Health</span></div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '25px' }}>0.4</span> <span>- Stressed</span></div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '25px' }}>0.2</span> <span>- Low/Soil</span></div>
+                  <div style={{ marginTop: '15px', fontSize: '0.8rem', borderTop: '1px dashed #ccc', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '2px', color: '#2D3748' }}>NDVI Reference Scale (Vegetation Vigor):</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4A5568' }}>
+                      <div style={{ width: '10px', height: '10px', backgroundColor: '#00FF88', borderRadius: '50%', flexShrink: 0 }}></div>
+                      <span style={{ width: '65px', fontWeight: 'bold' }}>0.7 to 1.0</span> 
+                      <span>Dense Canopy / Peak Vigor (No Stress)</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4A5568' }}>
+                      <div style={{ width: '10px', height: '10px', backgroundColor: '#ADFF2F', borderRadius: '50%', flexShrink: 0 }}></div>
+                      <span style={{ width: '65px', fontWeight: 'bold' }}>0.5 to 0.7</span> 
+                      <span>Moderate Canopy (Healthy/Developing)</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4A5568' }}>
+                      <div style={{ width: '10px', height: '10px', backgroundColor: '#FFFF00', borderRadius: '50%', flexShrink: 0 }}></div>
+                      <span style={{ width: '65px', fontWeight: 'bold' }}>0.3 to 0.5</span> 
+                      <span>Sparse Cover / Early Stage (Mild Stress)</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4A5568' }}>
+                      <div style={{ width: '10px', height: '10px', backgroundColor: '#FF8800', borderRadius: '50%', flexShrink: 0 }}></div>
+                      <span style={{ width: '65px', fontWeight: 'bold' }}>0.1 to 0.3</span> 
+                      <span>Bare Soil / Senescence (Moderate Stress)</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4A5568' }}>
+                      <div style={{ width: '10px', height: '10px', backgroundColor: '#FF0000', borderRadius: '50%', flexShrink: 0 }}></div>
+                      <span style={{ width: '65px', fontWeight: 'bold' }}>&lt; 0.1</span> 
+                      <span>Barren / Water / Urban (Severe Stress)</span>
+                    </div>
                   </div>
                 </div>
               )}
