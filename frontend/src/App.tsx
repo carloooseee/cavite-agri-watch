@@ -565,8 +565,7 @@ const App: React.FC = () => {
                   font: 'bold 16px Helvetica, Arial, sans-serif',
                   fill: new Fill({ color: '#333' }),
                   stroke: new Stroke({ color: '#fff', width: 2 }),
-                  overflow: true,
-                  placement: 'polygon'
+                  overflow: true
                 })
               }),
             });
