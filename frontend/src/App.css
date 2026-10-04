@@ -32,15 +32,10 @@ body {
 }
 
 .sidebar {
-  width: 300px;
+  width: 360px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  overflow-y: auto;
-}
-
-.right-panel {
-  width: 320px;
   overflow-y: auto;
 }
 
