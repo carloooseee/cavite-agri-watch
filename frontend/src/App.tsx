@@ -913,9 +913,10 @@ const App: React.FC = () => {
 
           <div className="controls-container">
             <button 
-              className="forecast-btn"
+              className="btn-primary"
               onClick={handleForesee} 
               disabled={isForecasting}
+              style={{ width: '100%' }}
             >
               {isForecasting ? '⏳ Foreseeing...' : t.run_forecast}
             </button>
@@ -925,7 +926,7 @@ const App: React.FC = () => {
                 className="btn-primary"
                 onClick={handleToggleSatellite} 
                 disabled={isSatelliteLoading}
-                style={{ width: '100%', marginTop: '10px', backgroundColor: showSatellite ? '#4A5568' : '#2B6CB0' }}
+                style={{ width: '100%' }}
               >
                 {isSatelliteLoading ? '⏳ Loading...' : showSatellite ? 'Hide Satellite Image' : 'View Satellite Image'}
               </button>
