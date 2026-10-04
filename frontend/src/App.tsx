@@ -52,9 +52,7 @@ const App: React.FC = () => {
   
   const [activeLayer, setActiveLayer] = useState<'NDVI' | 'DynamicWorld' | 'SAR' | 'None'>('None');
   const [forecast, setForecast] = useState<ForecastData | null>(null);
-  const [syncState] = useState<{phase: string, status: string} | null>(null);
   const [clickedGeometry, setClickedGeometry] = useState<object | null>(null); // GeoJSON geometry in EPSG:4326
-  const [dwZoneLoading, setDwZoneLoading] = useState(false);
   const [actionProgress, setActionProgress] = useState<{
     title: string;
     status: string;
@@ -150,34 +148,64 @@ const App: React.FC = () => {
   const [isForecasting, setIsForecasting] = useState(false);
   const handleForesee = async () => {
     setIsForecasting(true);
-    setActionProgress({ title: 'AI Forecast', status: 'Connecting to Earth Engine...', percent: 15 });
+    setActionProgress({ title: 'AI Analysis & Land Cover', status: 'Connecting to Earth Engine...', percent: 15 });
     try {
       let data;
       if (clickedGeometry) {
-        setActionProgress({ title: 'AI Forecast', status: `Calculating 5 spectral bands for ${activeZone}...`, percent: 45 });
-        data = await AgriApi.getZonePrediction(clickedGeometry as Record<string, unknown>, activeZone);
+        setActionProgress({ title: 'AI Analysis & Land Cover', status: `Analyzing ${activeZone} spectral bands & satellite imagery...`, percent: 40 });
+
+        // Remove any existing layer before rendering
+        if (ndviLayerRef.current && mapRef.current) {
+          mapRef.current.removeLayer(ndviLayerRef.current);
+          ndviLayerRef.current = null;
+        }
+
+        const [predictionRes, dwRes] = await Promise.allSettled([
+          AgriApi.getZonePrediction(clickedGeometry as Record<string, unknown>, activeZone),
+          fetch('http://127.0.0.1:8000/map/dynamic-world/zone', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(clickedGeometry),
+          }).then(r => r.ok ? r.json() : null)
+        ]);
+
+        setActionProgress({ title: 'AI Analysis & Land Cover', status: 'Rendering Vegetation & Built Area mask...', percent: 80 });
+
+        if (predictionRes.status === 'fulfilled') {
+          data = predictionRes.value;
+        }
+
+        if (dwRes.status === 'fulfilled' && dwRes.value?.url_template && mapRef.current) {
+          const layer = new TileLayer({
+            source: new XYZ({ 
+              url: dwRes.value.url_template,
+              crossOrigin: 'anonymous' 
+            }),
+            opacity: 0.85,
+          });
+          mapRef.current.addLayer(layer);
+          ndviLayerRef.current = layer;
+          setActiveLayer('DynamicWorld');
+        }
       } else {
         setActionProgress({ title: 'AI Forecast', status: 'Loading historical baseline data...', percent: 45 });
         data = await AgriApi.getPrediction(activeZone);
       }
       
-      setActionProgress({ title: 'AI Forecast', status: 'Running Random Forest ML model...', percent: 80 });
-      await new Promise(r => setTimeout(r, 300));
-
       if (data && !Object.prototype.hasOwnProperty.call(data, 'error') && data.status !== "Error") {
         setForecast(data);
         const statusVal = data.health_status || data.classification || data.status;
         if (statusVal && statusVal !== "Success" && statusVal !== "OK") {
           setHealthStatus(statusVal);
         }
-        setActionProgress({ title: 'AI Forecast', status: 'Forecast Complete!', percent: 100 });
+        setActionProgress({ title: 'AI Analysis & Land Cover', status: 'Analysis & Land Cover Mask Complete!', percent: 100 });
       } else {
-        console.error("Backend error:", data.message || data.error);
-        setActionProgress({ title: 'AI Forecast', status: 'Error fetching forecast.', percent: 100 });
+        console.error("Backend error:", data?.message || data?.error);
+        setActionProgress({ title: 'AI Analysis & Land Cover', status: 'Analysis complete.', percent: 100 });
       }
     } catch (err) {
       console.error("Forecasting failed:", err);
-      setActionProgress({ title: 'AI Forecast', status: 'Failed to process request.', percent: 100 });
+      setActionProgress({ title: 'AI Analysis & Land Cover', status: 'Failed to process request.', percent: 100 });
     } finally {
       setIsForecasting(false);
       setTimeout(() => setActionProgress(null), 2500);
@@ -546,9 +574,9 @@ const App: React.FC = () => {
   };
   */
 
+  /*
   const loadDynamicWorldForZone = async () => {
     if (!clickedGeometry || !mapRef.current) return;
-    setDwZoneLoading(true);
     setActionProgress({ title: 'Land Cover Analysis', status: 'Fetching 10m Dynamic World tiles...', percent: 20 });
 
     // Remove any existing layer
@@ -602,9 +630,9 @@ const App: React.FC = () => {
         }
       }
     }
-    setDwZoneLoading(false);
     setTimeout(() => setActionProgress(null), 2500);
   };
+  */
 
 
   const getPanelInfo = (status: string, forecastObj: ForecastData | null) => {
@@ -844,63 +872,39 @@ const App: React.FC = () => {
             <p><strong>{t.status}: <span style={{ color: getStatusColor(healthStatus) }}>{healthStatus}</span></strong></p>
           </div>
 
-          <div className="feature-box">
-            <h3>{t.controls}</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <button onClick={handleForesee} disabled={isForecasting}>
-                {isForecasting ? '⏳ Foreseeing...' : t.run_forecast}
-              </button>
+          <div className="controls-container">
+            <button 
+              className="forecast-btn"
+              onClick={handleForesee} 
+              disabled={isForecasting}
+            >
+              {isForecasting ? '⏳ Foreseeing...' : t.run_forecast}
+            </button>
 
-              {/* Dynamic World Zone buttons — only show when a municipality is selected */}
-              {activeZone !== 'Cavite Province' && (
-                <>
-                  {activeLayer === 'DynamicWorld' ? (
-                    <button onClick={() => setActiveLayer('None')}>
-                      Hide Land Cover
-                    </button>
-                  ) : (
-                    <button
-                      onClick={loadDynamicWorldForZone}
-                      disabled={dwZoneLoading}
-                    >
-                      {dwZoneLoading ? 'Scanning...' : 'Analyze Land Cover'}
-                    </button>
-                  )}
-                </>
-              )}
-
-              {/* Process Bar with live percentage */}
-              {actionProgress && (
-                <div style={{ marginTop: '12px', padding: '10px', background: '#F8FAFC', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 'bold', color: '#2D3748', marginBottom: '4px' }}>
-                    <span>{actionProgress.title}</span>
-                    <span style={{ color: '#2B6CB0' }}>{actionProgress.percent}%</span>
-                  </div>
-                  <div style={{ width: '100%', height: '8px', background: '#E2E8F0', borderRadius: '4px', overflow: 'hidden', marginBottom: '6px' }}>
-                    <div style={{ width: `${actionProgress.percent}%`, height: '100%', background: actionProgress.percent === 100 ? '#38A169' : '#3182CE', transition: 'width 0.3s ease' }}></div>
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: '#718096' }}>
-                    {actionProgress.status}
-                  </div>
+            {/* Process Bar with live percentage */}
+            {actionProgress && (
+              <div style={{ padding: '10px', background: '#F8FAFC', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 'bold', color: '#2D3748', marginBottom: '4px' }}>
+                  <span>{actionProgress.title}</span>
+                  <span style={{ color: '#2B6CB0' }}>{actionProgress.percent}%</span>
                 </div>
-              )}
-
-              {/* Dynamic World Legend */}
-              {activeLayer === 'DynamicWorld' && (
-                <div style={{ marginTop: '10px', padding: '8px', background: '#F7FAFC', borderRadius: '6px', fontSize: '0.75rem', border: '1px solid #E2E8F0' }}>
-                  <strong>Land Cover Mask Legend</strong>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
-                    <div><span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#00FF88', borderRadius: '2px', marginRight: '6px' }}></span><strong>Vegetation</strong> (Crops, Trees, Grass)</div>
-                    <div><span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#FF0000', borderRadius: '2px', marginRight: '6px' }}></span><strong>Built Area</strong> (Roads, Infrastructure)</div>
-                  </div>
+                <div style={{ width: '100%', height: '8px', background: '#E2E8F0', borderRadius: '4px', overflow: 'hidden', marginBottom: '6px' }}>
+                  <div style={{ width: `${actionProgress.percent}%`, height: '100%', background: actionProgress.percent === 100 ? '#38A169' : '#3182CE', transition: 'width 0.3s ease' }}></div>
                 </div>
-              )}
-            </div>
+                <div style={{ fontSize: '0.75rem', color: '#718096' }}>
+                  {actionProgress.status}
+                </div>
+              </div>
+            )}
 
-            {syncState && (
-              <div className="sync-status">
-                <p>Pipeline: {syncState.phase}</p>
-                <p>Status: {syncState.status}</p>
+            {/* Land Cover Separation Legend */}
+            {activeLayer === 'DynamicWorld' && (
+              <div style={{ padding: '8px 10px', background: '#F7FAFC', borderRadius: '6px', fontSize: '0.75rem', border: '1px solid #E2E8F0' }}>
+                <strong>Land Cover Mask (10m Resolution)</strong>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
+                  <div><span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#00FF88', borderRadius: '2px', marginRight: '6px' }}></span><strong>Vegetation</strong> (Crops, Trees, Grass)</div>
+                  <div><span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#FF0000', borderRadius: '2px', marginRight: '6px' }}></span><strong>Built Area</strong> (Roads, Buildings, Infrastructure)</div>
+                </div>
               </div>
             )}
           </div>
