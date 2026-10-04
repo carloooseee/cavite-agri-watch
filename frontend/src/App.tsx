@@ -964,7 +964,7 @@ const App: React.FC = () => {
 
             {/* Process Bar with live percentage */}
             {actionProgress && (
-              <div style={{ padding: '10px', background: '#F8FAFC', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+              <div className="feature-box">
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 'bold', color: '#2D3748', marginBottom: '4px' }}>
                   <span>{actionProgress.title}</span>
                   <span style={{ color: '#2B6CB0' }}>{actionProgress.percent}%</span>
@@ -980,7 +980,7 @@ const App: React.FC = () => {
 
             {/* Land Cover Separation Legend */}
             {activeLayer === 'DynamicWorld' && (
-              <div style={{ padding: '8px 10px', background: '#F7FAFC', borderRadius: '6px', fontSize: '0.75rem', border: '1px solid #E2E8F0' }}>
+              <div className="feature-box" style={{ fontSize: '0.75rem' }}>
                 <strong>Land Cover Mask (10m Resolution)</strong>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
                   <div><span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#00FF88', borderRadius: '2px', marginRight: '6px' }}></span><strong>Vegetation</strong> (Crops, Trees, Grass)</div>
@@ -1012,7 +1012,7 @@ const App: React.FC = () => {
               </button>
 
               {showAdvanced && (
-                <div className="forecast-meta" style={{ marginTop: '10px', background: '#F7FAFC', padding: '10px', borderRadius: '4px', border: '1px solid #E2E8F0' }}>
+                <div className="feature-box" style={{ marginTop: '10px' }}>
                   <p>{t.value} (NDVI): <strong>{forecast.forecast_30_days.toFixed(2)}</strong></p>
                   <p>{t.trend}: <span style={{ color: forecast.trend.includes('+') ? '#008000' : '#b22222', fontWeight: 'bold' }}>{forecast.trend}</span></p>
                   <p><small>CNN Softmax Prob: <strong>{((forecast.softmax_prob || 0) * 100).toFixed(1)}%</strong></small></p>
