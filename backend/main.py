@@ -241,8 +241,12 @@ def get_cavite_dynamic_world():
         # If NDVI is VERY high (> 0.5), force it to be Vegetation (Class 1).
         # If NDVI is low/moderate (< 0.25), force it to be Non-Vegetation (Class 6: Built/Red) to reveal more roads.
         # Everything else remains the Dynamic World AI's original classification.
-        label = label.where(ndvi.gt(0.5), 1)
-        label = label.where(ndvi.lt(0.25), 6)
+        # Fill in missing Dynamic World patches (due to cloud cover inside DW itself) with Vegetation (1)
+        label = label.unmask(1)
+        # Unmask the ndvi conditions so that cloud-masked pixels fall back to the original Dynamic World label
+        # rather than being erased completely from the final map.
+        label = label.where(ndvi.gt(0.5).unmask(0), 1)
+        label = label.where(ndvi.lt(0.25).unmask(0), 6)
         
         label = label.clip(cavite)
 
@@ -300,8 +304,12 @@ async def get_zone_dynamic_world_polygon(request: Request):
         # If NDVI is VERY high (> 0.5), force it to be Vegetation (Class 1).
         # If NDVI is low/moderate (< 0.25), force it to be Non-Vegetation (Class 6: Built/Red) to reveal more roads.
         # Everything else remains the Dynamic World AI's original classification.
-        label = label.where(ndvi.gt(0.5), 1)
-        label = label.where(ndvi.lt(0.25), 6)
+        # Fill in missing Dynamic World patches (due to cloud cover inside DW itself) with Vegetation (1)
+        label = label.unmask(1)
+        # Unmask the ndvi conditions so that cloud-masked pixels fall back to the original Dynamic World label
+        # rather than being erased completely from the final map.
+        label = label.where(ndvi.gt(0.5).unmask(0), 1)
+        label = label.where(ndvi.lt(0.25).unmask(0), 6)
         
         label = label.clip(zone_geom)
 
