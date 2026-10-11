@@ -17,3 +17,7 @@ pnpm-debug.log*
 
 # Node
 node_modules/
+
+#Thesis files
+thesis_evaluation/
+.vscode/
