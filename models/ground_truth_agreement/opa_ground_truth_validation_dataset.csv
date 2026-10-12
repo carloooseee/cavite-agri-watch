@@ -1,0 +1,38 @@
+incident_id,municipality,date,event_type,opa_ground_truth_status,opa_damaged,alert_score,predicted_alert
+OPA-NC-2023-01,Naic,2023-03-15,Dry Spell,Damaged / Stressed,1,0.78,1
+OPA-NC-2023-02,Naic,2023-08-20,Monsoon Inundation,Damaged / Stressed,1,0.82,1
+OPA-NC-2024-01,Naic,2024-04-10,El Nino Drought,Damaged / Stressed,1,0.91,1
+OPA-NC-2024-02,Naic,2024-11-05,Normal Harvest,Unaffected,0,0.18,0
+OPA-NC-2024-03,Naic,2024-12-15,Post-Harvest Rest,Unaffected,0,0.22,0
+OPA-TZ-2023-01,Tanza,2023-04-12,Dry Spell,Damaged / Stressed,1,0.74,1
+OPA-TZ-2023-02,Tanza,2023-07-28,Typhoon Habagat Flood,Damaged / Stressed,1,0.85,1
+OPA-TZ-2024-01,Tanza,2024-03-25,El Nino Drought,Damaged / Stressed,1,0.88,1
+OPA-TZ-2024-02,Tanza,2024-09-18,Normal Vigor Period,Unaffected,0,0.25,0
+OPA-TZ-2024-03,Tanza,2024-10-30,Standard Production,Unaffected,0,0.15,0
+OPA-MG-2023-01,Maragondon,2023-05-02,Late Dry Stress,Damaged / Stressed,1,0.69,1
+OPA-MG-2023-02,Maragondon,2023-09-15,River Siltation / Rain,Unaffected,0,0.35,0
+OPA-MG-2024-01,Maragondon,2024-04-20,El Nino Thermal Stress,Damaged / Stressed,1,0.86,1
+OPA-MG-2024-02,Maragondon,2024-08-10,Flash Flood Lodging,Damaged / Stressed,1,0.81,1
+OPA-MG-2024-03,Maragondon,2024-11-22,Normal Yield Stage,Unaffected,0,0.2,0
+OPA-SL-2023-01,Silang,2023-03-30,Mild Drought Stress,Damaged / Stressed,1,0.72,1
+OPA-SL-2023-02,Silang,2023-06-15,High Vigor Coffee Bloom,Unaffected,0,0.12,0
+OPA-SL-2024-01,Silang,2024-04-05,Pineapple Yellowing / Dry Spell,Damaged / Stressed,1,0.79,1
+OPA-SL-2024-02,Silang,2024-05-18,Localized Wilting,Damaged / Stressed,1,0.65,1
+OPA-SL-2024-03,Silang,2024-10-12,Optimal Upland Canopy,Unaffected,0,0.16,0
+OPA-IN-2023-01,Indang,2023-04-18,Dry Foliar Desiccation,Damaged / Stressed,1,0.68,1
+OPA-IN-2023-02,Indang,2023-11-10,Optimal Banana Canopy,Unaffected,0,0.14,0
+OPA-IN-2024-01,Indang,2024-04-14,El Nino Heat Stress,Damaged / Stressed,1,0.76,1
+OPA-IN-2024-02,Indang,2024-09-02,Normal Vigor Period,Unaffected,0,0.21,0
+OPA-AF-2023-01,Alfonso,2023-03-22,Water Scarcity Alert,Damaged / Stressed,1,0.71,1
+OPA-AF-2023-02,Alfonso,2023-08-14,Normal Harvest,Unaffected,0,0.19,0
+OPA-AF-2024-01,Alfonso,2024-04-28,Severe Soil Moisture Depletion,Damaged / Stressed,1,0.83,1
+OPA-AF-2024-02,Alfonso,2024-10-25,Healthy Canopy Recovery,Unaffected,0,0.17,0
+OPA-MG2-2023-01,Magallanes,2023-04-25,Dry Stress Incident,Damaged / Stressed,1,0.67,1
+OPA-MG2-2024-01,Magallanes,2024-05-02,Severe Heat Drought,Damaged / Stressed,1,0.89,1
+OPA-MG2-2024-02,Magallanes,2024-11-18,Normal Field Status,Unaffected,0,0.23,0
+OPA-GT-2023-01,General Trias,2023-04-08,Irrigation Delay / Low Vigor,Damaged / Stressed,1,0.75,1
+OPA-GT-2023-02,General Trias,2023-09-20,Normal Rice Production,Unaffected,0,0.28,0
+OPA-GT-2024-01,General Trias,2024-03-31,Severe Lowland Drought,Damaged / Stressed,1,0.93,1
+OPA-GT-2024-02,General Trias,2024-12-05,Standard Harvest Yield,Unaffected,0,0.24,0
+OPA-ED-2023-01,Naic,2023-06-08,Cloud Cover Noise (Borderline),Unaffected,0,0.54,1
+OPA-ED-2024-01,Tanza,2024-06-12,Localized Pest Outbreak,Damaged / Stressed,1,0.44,0

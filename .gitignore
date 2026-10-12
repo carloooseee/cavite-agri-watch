@@ -20,4 +20,6 @@ node_modules/
 
 #Thesis files
 thesis_evaluation/
+adviser_package/
+*.zip
 .vscode/
