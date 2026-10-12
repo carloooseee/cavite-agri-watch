@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import confusion_matrix, accuracy_score, cohen_kappa_score, classification_report
+
 
 def evaluate_ground_truth_agreement():
     print("=" * 65)
@@ -24,15 +24,15 @@ def evaluate_ground_truth_agreement():
     # ---------------------------------------------------------
     # 1. Overall Accuracy (OA) & Cohen's Kappa (kappa)
     # ---------------------------------------------------------
-    oa = accuracy_score(y_true, y_pred)
-    kappa = cohen_kappa_score(y_true, y_pred)
+    oa = float(np.mean(y_true == y_pred))
     
     # Mathematical breakdown of Cohen's Kappa: kappa = (Po - Pe) / (1 - Pe)
-    cm = confusion_matrix(y_true, y_pred)
-    # cm format:
-    # [[TN, FP],
-    #  [FN, TP]]
-    tn, fp, fn, tp = cm.ravel()
+    tn = int(np.sum((y_true == 0) & (y_pred == 0)))
+    fp = int(np.sum((y_true == 0) & (y_pred == 1)))
+    fn = int(np.sum((y_true == 1) & (y_pred == 0)))
+    tp = int(np.sum((y_true == 1) & (y_pred == 1)))
+    cm = np.array([[tn, fp], [fn, tp]])
+    
     total = len(y_true)
     po = (tp + tn) / total
     
@@ -42,7 +42,7 @@ def evaluate_ground_truth_agreement():
     p_pred_1 = (tp + fp) / total
     p_pred_0 = (tn + fn) / total
     pe = (p_true_1 * p_pred_1) + (p_true_0 * p_pred_0)
-    manual_kappa = (po - pe) / (1.0 - pe)
+    kappa = (po - pe) / (1.0 - pe)
     
     print(f"\nObserved Agreement (Po)       : {po:.4f} ({po*100:.2f}%)")
     print(f"Chance Expected Agreement (Pe) : {pe:.4f} ({pe*100:.2f}%)")
@@ -54,7 +54,7 @@ def evaluate_ground_truth_agreement():
     # ---------------------------------------------------------
     municipal_stats = []
     for muni, m_df in df.groupby('municipality'):
-        m_oa = accuracy_score(m_df['opa_damaged'], m_df['predicted_alert'])
+        m_oa = float(np.mean(m_df['opa_damaged'].values == m_df['predicted_alert'].values))
         matches = (m_df['opa_damaged'] == m_df['predicted_alert']).sum()
         total_m = len(m_df)
         municipal_stats.append({

@@ -1,0 +1,6 @@
+,NDVI (Greenness),EVI (Enhanced),NDRE (Red Edge),LSWI (Moisture),NDWI (Water)
+NDVI (Greenness),1.0,0.981,0.9942,0.9965,-0.9916
+EVI (Enhanced),0.981,1.0,0.9742,0.9815,-0.9674
+NDRE (Red Edge),0.9942,0.9742,1.0,0.9907,-0.9894
+LSWI (Moisture),0.9965,0.9815,0.9907,1.0,-0.9954
+NDWI (Water),-0.9916,-0.9674,-0.9894,-0.9954,1.0

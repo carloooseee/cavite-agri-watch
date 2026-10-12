@@ -1,0 +1,9 @@
+Metric,Value
+Overall Accuracy (OA),94.59%
+Cohen's Kappa (kappa),0.8899
+Observed Agreement (Po),0.9459
+Expected Chance Agreement (Pe),0.5091
+True Positive (Damaged Correctly Alerted),20
+True Negative (Unaffected Correctly Cleared),15
+False Positive (False Alert),1
+False Negative (Missed Alert),1
