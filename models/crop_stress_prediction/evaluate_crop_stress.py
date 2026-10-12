@@ -4,8 +4,12 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, classification_report, confusion_matrix
+
+# Import model class definitions for pickle unpickling
+from train_crop_stress import (
+    RandomForestRegressorPure, RandomForestClassifierPure,
+    DecisionTreeRegressorPure, DecisionTreeClassifierPure
+)
 
 def evaluate_crop_stress():
     print("=" * 65)
@@ -27,12 +31,21 @@ def evaluate_crop_stress():
     feature_cols = ['lag_1', 'lag_2', 'lag_3', 'chirps_rainfall_mm', 'baseline_anomaly_delta']
     feature_labels = ['Lagged Vigor (T)', 'Lagged Vigor (T-15)', 'Lagged Vigor (T-30)', 'CHIRPS Rainfall (mm)', 'Baseline Anomaly Delta']
     
-    X = df[feature_cols]
-    y_reg = df['target_30d']
-    y_clf = df['stress_tier']
+    X = df[feature_cols].values
+    y_reg = df['target_30d'].values
+    y_clf = df['stress_tier'].values
     
-    X_train, X_test, y_reg_train, y_reg_test = train_test_split(X, y_reg, test_size=0.2, random_state=42)
-    _, _, y_clf_train, y_clf_test = train_test_split(X, y_clf, test_size=0.2, random_state=42)
+    # Same deterministic 80/20 train/test split
+    np.random.seed(42)
+    n = len(df)
+    indices = np.arange(n)
+    np.random.shuffle(indices)
+    split = int(0.8 * n)
+    train_idx, test_idx = indices[:split], indices[split:]
+    
+    X_test = X[test_idx]
+    y_reg_test = y_reg[test_idx]
+    y_clf_test = y_clf[test_idx]
     
     with open(reg_model_path, 'rb') as f:
         rf_reg = pickle.load(f)
@@ -45,9 +58,9 @@ def evaluate_crop_stress():
     # ---------------------------------------------------------
     # 1. Regression Metrics Table
     # ---------------------------------------------------------
-    r2 = r2_score(y_reg_test, preds_reg)
-    rmse = np.sqrt(mean_squared_error(y_reg_test, preds_reg))
-    mae = mean_absolute_error(y_reg_test, preds_reg)
+    r2 = 1.0 - (np.sum((y_reg_test - preds_reg) ** 2) / np.sum((y_reg_test - np.mean(y_reg_test)) ** 2))
+    rmse = np.sqrt(np.mean((y_reg_test - preds_reg) ** 2))
+    mae = np.mean(np.abs(y_reg_test - preds_reg))
     mape = np.mean(np.abs((y_reg_test - preds_reg) / y_reg_test)) * 100.0
     
     reg_summary = [
@@ -63,9 +76,24 @@ def evaluate_crop_stress():
     # 2. Multi-class Categorical Stress Classification Report
     # ---------------------------------------------------------
     tiers = ['Optimal', 'Mild Stress', 'Moderate Stress', 'Severe Stress']
-    clf_rep_dict = classification_report(y_clf_test, preds_clf, labels=tiers, output_dict=True, zero_division=0)
-    clf_rep_df = pd.DataFrame(clf_rep_dict).transpose()
-    clf_rep_df.to_csv(os.path.join(out_dir, "stress_classification_report.csv"))
+    report_rows = []
+    for tier in tiers:
+        tp = np.sum((y_clf_test == tier) & (preds_clf == tier))
+        fp = np.sum((y_clf_test != tier) & (preds_clf == tier))
+        fn = np.sum((y_clf_test == tier) & (preds_clf != tier))
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        f1 = (2 * precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+        support = np.sum(y_clf_test == tier)
+        report_rows.append({
+            'Stress Tier': tier,
+            'precision': round(precision, 4),
+            'recall': round(recall, 4),
+            'f1-score': round(f1, 4),
+            'support': int(support)
+        })
+    clf_rep_df = pd.DataFrame(report_rows)
+    clf_rep_df.to_csv(os.path.join(out_dir, "stress_classification_report.csv"), index=False)
     print(f"[Saved] {os.path.join(out_dir, 'stress_classification_report.csv')}")
     
     # ---------------------------------------------------------

@@ -1,0 +1,5 @@
+Metric,Value
+R2 Score (Coefficient of Determination),0.7522
+Root Mean Square Error (RMSE),0.0801
+Mean Absolute Error (MAE),0.0611
+Mean Absolute Percentage Error (MAPE),17.93%
