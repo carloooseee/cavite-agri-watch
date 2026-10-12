@@ -6,7 +6,32 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
+
+def compute_metrics(y_true, y_pred):
+    oa = float(np.mean(y_true == y_pred))
+    
+    # 2x2 confusion matrix: [[TN, FP], [FN, TP]]
+    tn = int(np.sum((y_true == 0) & (y_pred == 0)))
+    fp = int(np.sum((y_true == 0) & (y_pred == 1)))
+    fn = int(np.sum((y_true == 1) & (y_pred == 0)))
+    tp = int(np.sum((y_true == 1) & (y_pred == 1)))
+    cm = np.array([[tn, fp], [fn, tp]])
+    
+    # Class 0: Urban / Built-up
+    p0 = tn / (tn + fn) if (tn + fn) > 0 else 0.0
+    r0 = tn / (tn + fp) if (tn + fp) > 0 else 0.0
+    f1_0 = (2 * p0 * r0) / (p0 + r0) if (p0 + r0) > 0 else 0.0
+    
+    # Class 1: Vegetated / Cropland
+    p1 = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+    r1 = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    f1_1 = (2 * p1 * r1) / (p1 + r1) if (p1 + r1) > 0 else 0.0
+    
+    report = {
+        'Urban / Built-up / Non-veg': {'precision': p0, 'recall': r0, 'f1-score': f1_0, 'support': tn + fp},
+        'Vegetated / Cropland': {'precision': p1, 'recall': r1, 'f1-score': f1_1, 'support': tp + fn}
+    }
+    return oa, cm, report
 
 from train_cnn_landcover import SentinelPatchDataset, LandCoverCNN
 
@@ -64,8 +89,7 @@ def evaluate_cnn():
     # ---------------------------------------------------------
     # 1. Compute Metrics (OA, Precision, Recall, F1, IoU)
     # ---------------------------------------------------------
-    oa = accuracy_score(y_true, y_pred)
-    cm = confusion_matrix(y_true, y_pred)
+    oa, cm, report_dict = compute_metrics(y_true, y_pred)
     
     # IoU Calculation per class
     # Class 0: Urban / Built-up
@@ -79,13 +103,11 @@ def evaluate_cnn():
     iou_1 = intersection_1 / (union_1 + 1e-6)
     miou = (iou_0 + iou_1) / 2.0
     
-    target_names = ["Urban / Built-up / Non-veg", "Vegetated / Cropland"]
-    report_dict = classification_report(y_true, y_pred, target_names=target_names, output_dict=True)
-    report_text = classification_report(y_true, y_pred, target_names=target_names)
-    
     print("\n--- CLASSIFICATION REPORT ---")
-    print(report_text)
-    print(f"Overall Accuracy (OA): {oa * 100:.2f}%")
+    print(f"{'Class':<28} {'Precision':<10} {'Recall':<10} {'F1-Score':<10} {'Support'}")
+    for c_name, scores in report_dict.items():
+        print(f"{c_name:<28} {scores['precision']:<10.4f} {scores['recall']:<10.4f} {scores['f1-score']:<10.4f} {scores['support']}")
+    print(f"\nOverall Accuracy (OA): {oa * 100:.2f}%")
     print(f"IoU (Urban / Non-veg) : {iou_0:.4f}")
     print(f"IoU (Vegetation)      : {iou_1:.4f}")
     print(f"Mean IoU (mIoU)       : {miou:.4f}")
