@@ -18,8 +18,11 @@ pnpm-debug.log*
 # Node
 node_modules/
 
-#Thesis files
+# Thesis files
 thesis_evaluation/
 adviser_package/
 *.zip
 .vscode/
+
+# Generated image datasets
+models/cnn_landcover/labeled_images_dataset/
