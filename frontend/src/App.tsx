@@ -997,17 +997,13 @@ const App: React.FC = () => {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      width: '42px',
-                      height: '40px',
-                      minWidth: '42px',
-                      borderRadius: '6px',
-                      border: '1px solid #CBD5E0',
-                      backgroundColor: showSatellite ? '#EBF8FF' : '#F7FAFC',
+                      background: 'none',
+                      border: 'none',
+                      outline: 'none',
                       color: showSatellite ? '#2B6CB0' : '#A0AEC0',
                       cursor: 'pointer',
-                      padding: 0,
-                      transition: 'all 0.2s ease',
-                      boxShadow: showSatellite ? '0 0 0 1px #3182CE' : 'none'
+                      padding: '4px',
+                      transition: 'color 0.2s ease, transform 0.15s ease'
                     }}
                   >
                     {showSatellite ? (
