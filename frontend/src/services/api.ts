@@ -26,6 +26,13 @@ export interface ForecastData {
     health_status?: string;
     error?: string;
     message?: string;
+    // Paper models (5.2.1 CNN, 5.2.3 Random Forest, 5.2.4 OPA calibration)
+    landcover?: { label: string; vegetated_probability: number; confidence: number } | null;
+    rainfall_mm?: number | null;
+    model_used?: string;
+    opa_alert_score?: number | null;
+    opa_alert_probability?: number | null;
+    historical_years?: number;
 }
 
 export const AgriApi = {
@@ -65,6 +72,12 @@ export const AgriApi = {
     // Get CVIP Evidence and metadata
     getCVIPEvidence: async () => {
         const response = await fetch(`${BASE_URL}/cvip/evidence`);
+        return await response.json();
+    },
+
+    // Offline validation metrics + figures for all paper models
+    getValidationEvidence: async () => {
+        const response = await fetch(`${BASE_URL}/validation/evidence`);
         return await response.json();
     }
 };

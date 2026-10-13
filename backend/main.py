@@ -12,6 +12,8 @@ import base64
 from datetime import datetime, timedelta
 from fastapi.responses import StreamingResponse
 from train_model import train_agri_model
+import paper_models
+import zone_analysis
 
 app = FastAPI()
 
@@ -42,6 +44,9 @@ if os.path.exists(MODEL_PATH):
     with open(MODEL_PATH, 'rb') as f:
         agri_model = pickle.load(f)
     print("AI Model (agri_model.pkl) loaded successfully!")
+
+# Load the research models from /models (CNN 5.2.1, Random Forest 5.2.3, OPA calibrator 5.2.4)
+paper_models.load_models()
 
 # 2. ENDPOINTS
 @app.get("/map/ndvi")
@@ -327,199 +332,23 @@ async def get_zone_dynamic_world_polygon(request: Request):
 
 
 @app.get("/predict/ndvi")
-def predict_crop_health(city_name: str = "Cavite Province"):
-    """Uses the ML model to foresee future crop health based on history."""
-    if not agri_model:
-        return {"error": "Model not found. Run train_model.py first."}
-    
+async def predict_crop_health(city_name: str = "Cavite Province"):
+    """Province / municipality forecast by name: live GEE indices + trained RF/CNN/OPA models."""
     try:
-        # Load historical data (Benchmark: Pattern Discovery)
-        df = pd.read_csv('data/cavite_history.csv')
-        if 'date' in df.columns:
-            df['date'] = pd.to_datetime(df['date'])
-            df = df.sort_values('date')
-        df = df.tail(3)
-        
-        # Ensure correct order: lag_1 is newest, lag_2 is middle, lag_3 is oldest
-        last_3_ndvi = df['ndvi'].values[::-1] 
-        input_df = pd.DataFrame([last_3_ndvi], columns=['lag_1', 'lag_2', 'lag_3'])
-        
-        # Predict 30 days ahead (Benchmark: Foreseeing values)
-        prediction = agri_model.predict(input_df)[0]
-        current_val = float(last_3_ndvi[0])
-
-        # City-specific logic: Add some "noise" based on city name for demo variety
-        # This makes the forecast unique for each city while still using the core model
-        city_seed = sum(ord(c) for c in city_name) % 100
-        city_adjustment = (city_seed - 50) / 500  # -0.1 to +0.1 adjustment
-        
-        adjusted_prediction = max(0.1, min(0.9, float(prediction) + city_adjustment))
-        adjusted_current = max(0.1, min(0.9, current_val + (city_adjustment * 0.5)))
-        
-        # Determine trend description
-        if adjusted_prediction > adjusted_current + 0.05:
-            trend_desc = f"+{(adjusted_prediction - adjusted_current)*100:.1f}% Significant Recovery"
-        elif adjusted_prediction > adjusted_current:
-            trend_desc = f"+{(adjusted_prediction - adjusted_current)*100:.1f}% Positive Growth"
-        elif adjusted_prediction < adjusted_current - 0.05:
-            trend_desc = f"-{(adjusted_current - adjusted_prediction)*100:.1f}% Critical Decline"
-        else:
-            trend_desc = f"-{(adjusted_current - adjusted_prediction)*100:.1f}% Slight Decline"
-
-        # 4-tier classification based on paper's logic
-        if adjusted_prediction > 0.6:
-            classification = "No Stress"
-            meaning = "High photosynthetic activity expected; crops will likely remain healthy and productive."
-            expert_advice = "Optimal conditions for peak yield; maintain standard precision irrigation."
-        elif adjusted_prediction > 0.45:
-            classification = "Mild Stress"
-            meaning = "Early signs of vigor reduction; minor monitoring required to prevent potential yield loss."
-            expert_advice = "Early-stage vigor drop; check for leaf-scale moisture stress and soil salinity."
-        elif adjusted_prediction > 0.3:
-            classification = "Moderate Stress"
-            meaning = "Significant vegetation decline predicted; immediate soil and irrigation assessment recommended."
-            expert_advice = "Significant metabolic failure risk; prioritize immediate high-impact foliar feeding."
-        else:
-            classification = "Severe Stress"
-            meaning = "Critical crop failure risk; emergency intervention needed as vigor is below sustainable levels."
-            expert_advice = "Emergency intervention required; prioritize soil remediation and intensive moisture management."
-
-        return {
-            "status": "Success",
-            "city": city_name,
-            "current_ndvi": adjusted_current,
-            "forecast_30_days": adjusted_prediction,
-            "trend": trend_desc,
-            "classification": classification,
-            "meaning": meaning,
-            "expert_advice": expert_advice,
-            "accuracy_metric": "Model Confidence: 92.4%",
-            "evi": adjusted_current * 0.85,
-            "ndwi": 0.4 + (city_adjustment * 0.2),
-            "lswi": 0.35 + (city_adjustment * 0.3),
-            "ndre": 0.22 + (city_adjustment * 0.1),
-            "softmax_prob": 0.88 + (abs(city_adjustment))
-        }
+        return await asyncio.to_thread(zone_analysis.analyze_cached, ee, city_name, agri_model)
     except Exception as e:
         return {"status": "Error", "message": str(e)}
 
 @app.post("/predict/indices/zone")
 async def predict_zone_indices(request: Request):
-    """Calculates actual indices for a given geometry and runs the prediction model."""
+    """Same pipeline for an arbitrary clicked geometry."""
     try:
         body = await request.json()
-        zone_geom = ee.Geometry(body.get('geometry'))
         city_name = body.get('city_name', 'Unknown Area')
-
-        now = datetime.now()
-        start = (now - timedelta(days=90)).strftime('%Y-%m-%d')
-        end = now.strftime('%Y-%m-%d')
-
-        def mask_clouds(img):
-            qa = img.select('QA60')
-            mask = qa.bitwiseAnd(1 << 10).eq(0).And(qa.bitwiseAnd(1 << 11).eq(0))
-            return img.updateMask(mask).divide(10000)
-
-        composite = (
-            ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
-            .filterBounds(zone_geom)
-            .filterDate(start, end)
-            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 30))
-            .map(mask_clouds)
-            .median()
-        )
-
-        ndvi = composite.normalizedDifference(['B8', 'B4']).rename('ndvi')
-        veg_mask = ndvi.gt(0.2)
-        ndvi = ndvi.updateMask(veg_mask)
-
-        evi = composite.expression(
-            '2.5 * ((NIR - RED) / (NIR + 6 * RED - 7.5 * BLUE + 1))', {
-                'NIR': composite.select('B8'),
-                'RED': composite.select('B4'),
-                'BLUE': composite.select('B2')
-            }).rename('evi').updateMask(veg_mask)
-
-        ndwi = composite.normalizedDifference(['B3', 'B8']).rename('ndwi').updateMask(veg_mask)
-        lswi = composite.normalizedDifference(['B8', 'B11']).rename('lswi').updateMask(veg_mask)
-        ndre = composite.normalizedDifference(['B8', 'B5']).rename('ndre').updateMask(veg_mask)
-
-        indices = ee.Image.cat([ndvi, evi, ndwi, lswi, ndre])
-        
-        # Calculate stats (async to not block FastAPI)
-        stats = await asyncio.to_thread(
-            lambda: indices.reduceRegion(
-                reducer=ee.Reducer.mean(),
-                geometry=zone_geom,
-                scale=30,
-                maxPixels=1e9
-            ).getInfo()
-        )
-
-        current_ndvi = stats.get('ndvi')
-        if current_ndvi is None:
-            current_ndvi = 0.5 # fallback
-
-        # Predict 30 days ahead using model
-        prediction_val = 0.5
-        if agri_model:
-            df = pd.read_csv('data/cavite_history.csv')
-            if 'date' in df.columns:
-                df['date'] = pd.to_datetime(df['date'])
-                df = df.sort_values('date')
-            last_3_ndvi = df['ndvi'].values[-3:][::-1]
-            
-            # Replace the latest with our actual computed one for better precision
-            input_data = [current_ndvi, last_3_ndvi[1], last_3_ndvi[2]]
-            input_df = pd.DataFrame([input_data], columns=['lag_1', 'lag_2', 'lag_3'])
-            prediction_val = float(agri_model.predict(input_df)[0])
-
-        adjusted_prediction = max(0.1, min(0.9, prediction_val))
-        
-        if adjusted_prediction > current_ndvi + 0.05:
-            trend_desc = f"+{(adjusted_prediction - current_ndvi)*100:.1f}% Significant Recovery"
-        elif adjusted_prediction > current_ndvi:
-            trend_desc = f"+{(adjusted_prediction - current_ndvi)*100:.1f}% Positive Growth"
-        elif adjusted_prediction < current_ndvi - 0.05:
-            trend_desc = f"-{(current_ndvi - adjusted_prediction)*100:.1f}% Critical Decline"
-        else:
-            trend_desc = f"-{(current_ndvi - adjusted_prediction)*100:.1f}% Slight Decline"
-
-        if adjusted_prediction > 0.6:
-            classification = "No Stress"
-            meaning = "High photosynthetic activity expected; crops will likely remain healthy and productive."
-            expert_advice = "Optimal conditions for peak yield; maintain standard precision irrigation."
-        elif adjusted_prediction > 0.45:
-            classification = "Mild Stress"
-            meaning = "Early signs of vigor reduction; minor monitoring required to prevent potential yield loss."
-            expert_advice = "Early-stage vigor drop; check for leaf-scale moisture stress and soil salinity."
-        elif adjusted_prediction > 0.3:
-            classification = "Moderate Stress"
-            meaning = "Significant vegetation decline predicted; immediate soil and irrigation assessment recommended."
-            expert_advice = "Significant metabolic failure risk; prioritize immediate high-impact foliar feeding."
-        else:
-            classification = "Severe Stress"
-            meaning = "Critical crop failure risk; emergency intervention needed as vigor is below sustainable levels."
-            expert_advice = "Emergency intervention required; prioritize soil remediation and intensive moisture management."
-
-        return {
-            "status": "Success",
-            "city": city_name,
-            "current_ndvi": round(current_ndvi, 3),
-            "forecast_30_days": round(adjusted_prediction, 3),
-            "trend": trend_desc,
-            "classification": classification,
-            "meaning": meaning,
-            "expert_advice": expert_advice,
-            "accuracy_metric": "Model Confidence: 92.4%",
-            "evi": round(stats.get('evi') or 0, 3),
-            "ndwi": round(stats.get('ndwi') or 0, 3),
-            "lswi": round(stats.get('lswi') or 0, 3),
-            "ndre": round(stats.get('ndre') or 0, 3),
-            "softmax_prob": 0.88
-        }
+        return await asyncio.to_thread(zone_analysis.analyze, ee, body.get('geometry'), city_name, agri_model)
     except Exception as e:
         return {"status": "Error", "message": str(e)}
+
 
 @app.get("/sync-data")
 async def sync_data():
@@ -605,9 +434,14 @@ def get_cvip_evidence():
         }
     }
 
+@app.get("/validation/evidence")
+def get_validation_evidence():
+    """Offline evaluation artifacts of all four paper models (metrics tables + figures)."""
+    return paper_models.validation_evidence()
+
 @app.get("/test-gee")
 def test_gee():
-    return {"status": "Online", "model_ready": agri_model is not None}
+    return {"status": "Online", "model_ready": agri_model is not None, "paper_models": paper_models.status()}
 
 @app.get("/")
 def read_root():
@@ -620,15 +454,6 @@ def read_root():
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-# Existing health mapping (You can later replace this with your ML prediction)
-HEALTH_DATABASE = {
-    "Indang": "No Stress",
-    "Silang": "Mild Stress",
-    "Naic": "Severe Stress",
-    "Tanza": "No Stress",
-    "Maragondon": "Moderate Stress"
-}
-
 @app.websocket("/ws/analytics")
 async def websocket_bridge(websocket: WebSocket):
     await websocket.accept()
@@ -637,14 +462,25 @@ async def websocket_bridge(websocket: WebSocket):
             # Receive city name from React click
             data = await websocket.receive_json()
             city_name = data.get("name")
-            
-            # Lookup health
-            status = HEALTH_DATABASE.get(city_name, "Stable")
-            
-            # Push back to Dashboard
-            await websocket.send_json({
-                "status": status,
-                "location": city_name
-            })
+
+            # Health comes from the trained models on live satellite data (cached per area)
+            try:
+                result = await asyncio.to_thread(zone_analysis.analyze_cached, ee, city_name, agri_model)
+            except Exception as e:
+                result = {"status": "Error", "message": str(e)}
+
+            if result.get("status") == "Success":
+                await websocket.send_json({
+                    "status": result["classification"],
+                    "location": city_name,
+                    "forecast_30_days": result["forecast_30_days"],
+                    "opa_alert_probability": result["opa_alert_probability"],
+                })
+            else:
+                await websocket.send_json({
+                    "status": "Unavailable",
+                    "location": city_name,
+                    "message": result.get("message"),
+                })
     except WebSocketDisconnect:
         print("Dashboard disconnected")

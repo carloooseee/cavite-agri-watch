@@ -12,6 +12,7 @@ import { Style, Stroke, Fill, Text } from 'ol/style';
 import { Select } from 'ol/interaction';
 import { click } from 'ol/events/condition';
 import { AgriApi, type ForecastData } from './services/api';
+import ValidationEvidence from './components/ValidationEvidence';
 import XYZ from 'ol/source/XYZ';
 import { jsPDF } from "jspdf";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -362,8 +363,8 @@ const App: React.FC = () => {
     doc.setTextColor(100, 100, 100);
     doc.setFontSize(10);
     doc.text(`Primary Metric: NDVI`, 130, 215);
-    doc.text(`AI Confidence: ${forecast?.accuracy_metric || "92.4%"}`, 130, 222);
-    doc.text(`Softmax Prob: ${((forecast?.softmax_prob || 0)*100).toFixed(1)}%`, 130, 229);
+    doc.text(`AI Confidence: ${forecast?.accuracy_metric || "n/a"}`, 130, 222);
+    doc.text(`Softmax Prob: ${forecast?.softmax_prob != null ? (forecast.softmax_prob * 100).toFixed(1) + '%' : 'n/a'}`, 130, 229);
 
     // Footer Page 1
     doc.setFontSize(8);
@@ -696,20 +697,14 @@ const App: React.FC = () => {
 
 
   const getPanelInfo = (status: string, forecastObj: ForecastData | null) => {
-    // Dynamic chart data
+    // Trend chart built only from measured/predicted values returned by the backend
     const trendData = forecastObj ? [
-      { day: 'T-30d', ndvi: forecastObj.lag_3 ?? 0.62 },
-      { day: 'T-20d', ndvi: forecastObj.lag_2 ?? 0.64 },
-      { day: 'T-10d', ndvi: forecastObj.lag_1 ?? 0.63 },
-      { day: 'Current', ndvi: forecastObj.current_ndvi ?? 0.65 },
-      { day: 'T+30d Forecast', ndvi: forecastObj.forecast_30_days ?? 0.68 },
-    ] : [
-      { day: 'T-30d', ndvi: 0.62 },
-      { day: 'T-20d', ndvi: 0.64 },
-      { day: 'T-10d', ndvi: 0.63 },
-      { day: 'Current', ndvi: 0.65 },
-      { day: 'T+30d Forecast', ndvi: 0.68 },
-    ];
+      { day: 'T-45d', ndvi: forecastObj.lag_3 },
+      { day: 'T-30d', ndvi: forecastObj.lag_2 },
+      { day: 'T-15d', ndvi: forecastObj.lag_1 },
+      { day: 'Current', ndvi: forecastObj.current_ndvi },
+      { day: 'T+30d Forecast', ndvi: forecastObj.forecast_30_days },
+    ].filter(p => typeof p.ndvi === 'number') : [];
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let baseInfo: any;
@@ -743,7 +738,7 @@ const App: React.FC = () => {
             },
             avoid: "Over-fertilization during stress periods.",
             educational: "Early abiotic stress detected in cellular data.",
-            chart: trendData.map(d => ({ ...d, ndvi: d.ndvi - (forecastObj ? 0 : 0.05) }))
+            chart: trendData
           };
           break;
         case "Moderate Stress":
@@ -758,7 +753,7 @@ const App: React.FC = () => {
             },
             avoid: "Planting new crops; stop chemical pesticides.",
             educational: "Low chlorophyll levels indicate metabolic failure.",
-            chart: trendData.map(d => ({ ...d, ndvi: d.ndvi - (forecastObj ? 0 : 0.15) }))
+            chart: trendData
           };
           break;
         case "Severe Stress":
@@ -773,7 +768,7 @@ const App: React.FC = () => {
             },
             avoid: "All mechanical operations.",
             educational: "Severe moisture deficit in LSWI data.",
-            chart: trendData.map(d => ({ ...d, ndvi: d.ndvi - (forecastObj ? 0 : 0.3) }))
+            chart: trendData
           };
           break;
         default:
@@ -1014,8 +1009,19 @@ const App: React.FC = () => {
                 <div className="feature-box" style={{ marginTop: '10px' }}>
                   <p>{t.value} (NDVI): <strong>{forecast.forecast_30_days.toFixed(2)}</strong></p>
                   <p>{t.trend}: <span style={{ color: forecast.trend.includes('+') ? '#008000' : '#b22222', fontWeight: 'bold' }}>{forecast.trend}</span></p>
-                  <p><small>CNN Softmax Prob: <strong>{((forecast.softmax_prob || 0) * 100).toFixed(1)}%</strong></small></p>
+                  <p><small>CNN Softmax Prob: <strong>{forecast.softmax_prob != null ? (forecast.softmax_prob * 100).toFixed(1) + '%' : '--'}</strong></small></p>
+                  {forecast.landcover && (
+                    <p><small>CNN Land Cover: <strong>{forecast.landcover.label}</strong> (vegetation prob. {(forecast.landcover.vegetated_probability * 100).toFixed(1)}%)</small></p>
+                  )}
+                  {forecast.rainfall_mm != null && (
+                    <p><small>CHIRPS Rainfall (30d): <strong>{forecast.rainfall_mm.toFixed(1)} mm</strong></small></p>
+                  )}
+                  {forecast.opa_alert_probability != null && (
+                    <p><small>OPA-Calibrated Damage Alert: <strong>{(forecast.opa_alert_probability * 100).toFixed(0)}%</strong> (alert score {forecast.opa_alert_score})</small></p>
+                  )}
+                  {forecast.model_used && <p><small>Model: <strong>{forecast.model_used}</strong></small></p>}
                   <p><small>{forecast.accuracy_metric}</small></p>
+                  <ValidationEvidence />
                   
                   <div style={{ marginTop: '15px', fontSize: '0.75rem', borderTop: '1px solid #CBD5E0', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <div style={{ fontWeight: 'bold', marginBottom: '2px', color: '#2D3748' }}>NDVI Reference Scale (Vegetation Vigor):</div>
@@ -1077,8 +1083,8 @@ const App: React.FC = () => {
                     </div>
                   </div>
                   <div style={{ marginTop: '10px', fontSize: '0.75rem', borderTop: '1px solid #eee', paddingTop: '8px', color: '#555' }}>
-                    <p><strong>Baseline Comparison:</strong> Current image vs. 10-year historical mean (Σ {forecast?.current_ndvi !== undefined && forecast?.historical_mean !== undefined ? (forecast.current_ndvi - forecast.historical_mean).toFixed(2) : '-0.14'} deviation).</p>
-                    <p><strong>Cloud Interference:</strong> {forecast?.cloud_cover !== undefined ? forecast.cloud_cover.toFixed(1) : forecast?.qa60_noise !== undefined ? forecast.qa60_noise.toFixed(1) : '4.2'}% residual noise handled by QA60 bitmask.</p>
+                    <p><strong>Baseline Comparison:</strong> Current image vs. {forecast?.historical_years ?? 0}-year same-season historical mean ({forecast?.current_ndvi != null && forecast?.historical_mean != null ? (forecast.current_ndvi - forecast.historical_mean).toFixed(2) : '--'} deviation).</p>
+                    <p><strong>Cloud Interference:</strong> {forecast?.cloud_cover != null ? forecast.cloud_cover.toFixed(1) : '--'}% residual noise handled by QA60 bitmask.</p>
                     <p><strong>Processing Node:</strong> {forecast ? 'GEE-Satellite Cluster-Live' : 'GEE-Satellite Cluster-04'}</p>
                   </div>
                 </div>
