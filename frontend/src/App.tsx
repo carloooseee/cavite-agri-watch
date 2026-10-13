@@ -157,18 +157,23 @@ const App: React.FC = () => {
   const [isForecasting, setIsForecasting] = useState(false);
   const satelliteLayerRef = useRef<TileLayer<XYZ> | null>(null);
   const [isSatelliteLoading, setIsSatelliteLoading] = useState(false);
+  const [isSatelliteLoaded, setIsSatelliteLoaded] = useState(false);
   const [showSatellite, setShowSatellite] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const handleToggleSatelliteVisibility = () => {
+    if (!satelliteLayerRef.current) return;
+    const nextVisible = !showSatellite;
+    satelliteLayerRef.current.setVisible(nextVisible);
+    setShowSatellite(nextVisible);
+  };
 
   const handleToggleSatellite = async () => {
     if (!mapRef.current || activeZone === "Cavite Province" || !clickedGeometry) return;
     
-    if (showSatellite) {
-      if (satelliteLayerRef.current) {
-        mapRef.current.removeLayer(satelliteLayerRef.current);
-        satelliteLayerRef.current = null;
-      }
-      setShowSatellite(false);
+    // If already loaded into the map, toggle visibility directly without reloading from network
+    if (isSatelliteLoaded && satelliteLayerRef.current) {
+      handleToggleSatelliteVisibility();
       return;
     }
 
@@ -183,11 +188,12 @@ const App: React.FC = () => {
       
       if (data.url_template) {
         const layer = new TileLayer({
-          source: new XYZ({ url: data.url_template }),
+          source: new XYZ({ url: data.url_template, crossOrigin: 'anonymous' }),
           zIndex: 1, // Above Cavite layer, below NDVI if needed
         });
         mapRef.current.addLayer(layer);
         satelliteLayerRef.current = layer;
+        setIsSatelliteLoaded(true);
         setShowSatellite(true);
       }
     } catch (error) {
@@ -514,6 +520,14 @@ const App: React.FC = () => {
           ndviLayerRef.current = null;
           setActiveLayer('None');
         }
+
+        // Clear any existing satellite layer when switching zones
+        if (satelliteLayerRef.current && mapRef.current) {
+          mapRef.current.removeLayer(satelliteLayerRef.current);
+          satelliteLayerRef.current = null;
+        }
+        setIsSatelliteLoaded(false);
+        setShowSatellite(false);
 
         setHealthStatus("Awaiting Analysis");
 
@@ -849,6 +863,12 @@ const App: React.FC = () => {
         ndviLayerRef.current = null;
         setActiveLayer('None');
       }
+      if (satelliteLayerRef.current && mapRef.current) {
+        mapRef.current.removeLayer(satelliteLayerRef.current);
+        satelliteLayerRef.current = null;
+      }
+      setIsSatelliteLoaded(false);
+      setShowSatellite(false);
       return;
     }
 
@@ -871,6 +891,12 @@ const App: React.FC = () => {
       ndviLayerRef.current = null;
       setActiveLayer('None');
     }
+    if (satelliteLayerRef.current && mapRef.current) {
+      mapRef.current.removeLayer(satelliteLayerRef.current);
+      satelliteLayerRef.current = null;
+    }
+    setIsSatelliteLoaded(false);
+    setShowSatellite(false);
 
     setHealthStatus("Awaiting Analysis");
 
@@ -946,14 +972,58 @@ const App: React.FC = () => {
             </button>
 
             {activeZone !== "Cavite Province" && (
-              <button 
-                className="btn-primary"
-                onClick={handleToggleSatellite} 
-                disabled={isSatelliteLoading}
-                style={{ width: '100%' }}
-              >
-                {isSatelliteLoading ? 'Loading...' : showSatellite ? 'Hide Satellite Image' : 'View Satellite Image'}
-              </button>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%' }}>
+                <button 
+                  className="btn-primary"
+                  onClick={handleToggleSatellite} 
+                  disabled={isSatelliteLoading}
+                  style={{ flex: 1 }}
+                  id="btn-satellite-toggle"
+                >
+                  {isSatelliteLoading
+                    ? 'Loading Satellite...'
+                    : isSatelliteLoaded
+                      ? (showSatellite ? 'Hide Satellite Image' : 'View Satellite Image')
+                      : 'View Satellite Image'}
+                </button>
+                {isSatelliteLoaded && (
+                  <button 
+                    type="button"
+                    onClick={handleToggleSatelliteVisibility}
+                    id="btn-satellite-eye-toggle"
+                    title={showSatellite ? "Hide Satellite Image (Keeps cached layer)" : "Show Satellite Image (Instant)"}
+                    aria-label={showSatellite ? "Hide Satellite Image" : "Show Satellite Image"}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '42px',
+                      height: '40px',
+                      minWidth: '42px',
+                      borderRadius: '6px',
+                      border: '1px solid #CBD5E0',
+                      backgroundColor: showSatellite ? '#EBF8FF' : '#F7FAFC',
+                      color: showSatellite ? '#2B6CB0' : '#A0AEC0',
+                      cursor: 'pointer',
+                      padding: 0,
+                      transition: 'all 0.2s ease',
+                      boxShadow: showSatellite ? '0 0 0 1px #3182CE' : 'none'
+                    }}
+                  >
+                    {showSatellite ? (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                    ) : (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                        <line x1="1" y1="1" x2="23" y2="23"></line>
+                      </svg>
+                    )}
+                  </button>
+                )}
+              </div>
             )}
 
             {/* Process Bar with live percentage */}
