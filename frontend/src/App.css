@@ -187,3 +187,46 @@ body.dark select { background-color: #2d3748 !important; color: #e2e8f0 !importa
 body.dark .active-zone-tag { background: #1a202c; color: #e2e8f0; border-color: #4a5568; }
 body.dark .spectral-item, body.dark .sync-status { background: #2d3748; border-color: #4a5568; }
 body.dark h3 { border-bottom-color: #4a5568; }
+
+/* Custom borderless scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  border: none;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+  border: none;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Dark mode scrollbar */
+body.dark * {
+  scrollbar-color: #4a5568 transparent;
+}
+
+body.dark ::-webkit-scrollbar-thumb {
+  background-color: #4a5568;
+}
+
+body.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: #718096;
+}
