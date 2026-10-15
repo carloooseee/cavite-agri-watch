@@ -4,3 +4,5 @@ earthengine-api
 pandas
 scikit-learn
 numpy
+pytest
+httpx
