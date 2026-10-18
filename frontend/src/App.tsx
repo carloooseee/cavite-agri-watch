@@ -47,6 +47,7 @@ const App: React.FC = () => {
   const mapRef = useRef<OLMap | null>(null);
   const socket = useRef<WebSocket | null>(null);
   const ndviLayerRef = useRef<TileLayer<XYZ> | null>(null);
+  const philippinesLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cityDataMapRef = useRef<Map<string, { geom: any; geomGeoJson: any }>>(new Map());
   
@@ -67,6 +68,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     document.body.className = theme;
+    philippinesLayerRef.current?.changed();
   }, [theme]);
 
   const translations = {
@@ -165,6 +167,10 @@ const App: React.FC = () => {
     if (!satelliteLayerRef.current) return;
     const nextVisible = !showSatellite;
     satelliteLayerRef.current.setVisible(nextVisible);
+    // When satellite is visible, hide forecast mask so satellite is clear; when satellite is hidden, show forecast mask
+    if (ndviLayerRef.current) {
+      ndviLayerRef.current.setVisible(!nextVisible);
+    }
     setShowSatellite(nextVisible);
   };
 
@@ -179,7 +185,7 @@ const App: React.FC = () => {
 
     setIsSatelliteLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/map/satellite/zone', {
+      const response = await fetch('http://127.0.0.1:8000/map/satellite/zone', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(clickedGeometry)
@@ -189,12 +195,16 @@ const App: React.FC = () => {
       if (data.url_template) {
         const layer = new TileLayer({
           source: new XYZ({ url: data.url_template, crossOrigin: 'anonymous' }),
-          zIndex: 1, // Above Cavite layer, below NDVI if needed
+          zIndex: 30, // Above forecast layer (zIndex: 25) and Cavite base layer (zIndex: 10)
         });
         mapRef.current.addLayer(layer);
         satelliteLayerRef.current = layer;
         setIsSatelliteLoaded(true);
         setShowSatellite(true);
+        // Hide forecast mask so the true-color satellite imagery is unobstructed
+        if (ndviLayerRef.current) {
+          ndviLayerRef.current.setVisible(false);
+        }
       }
     } catch (error) {
       console.error("Failed to load satellite image:", error);
@@ -214,6 +224,12 @@ const App: React.FC = () => {
         if (ndviLayerRef.current && mapRef.current) {
           mapRef.current.removeLayer(ndviLayerRef.current);
           ndviLayerRef.current = null;
+        }
+
+        // Hide satellite layer while rendering new forecast so the land cover mask is immediately visible
+        if (satelliteLayerRef.current) {
+          satelliteLayerRef.current.setVisible(false);
+          setShowSatellite(false);
         }
 
         const [predictionRes, dwRes] = await Promise.allSettled([
@@ -238,9 +254,11 @@ const App: React.FC = () => {
               crossOrigin: 'anonymous' 
             }),
             opacity: 0.85,
+            zIndex: 25,
           });
           mapRef.current.addLayer(layer);
           ndviLayerRef.current = layer;
+          ndviLayerRef.current.setVisible(true);
           setActiveLayer('DynamicWorld');
         }
       } else {
@@ -453,30 +471,44 @@ const App: React.FC = () => {
     };
 
     const caviteCenter = fromLonLat([120.90, 14.28]);
-    // Loose bounding box to allow freer panning while still keeping the user in the general vicinity
-    const looseExtent = transformExtent([119.5, 13.0, 122.0, 15.5], 'EPSG:4326', 'EPSG:3857');
+    // Bounding box covering the Philippines archipelago to allow panning and viewing the entire country
+    const phExtent = transformExtent([114.0, 4.0, 130.0, 22.0], 'EPSG:4326', 'EPSG:3857');
 
-    const caviteLayer = new VectorLayer({
-      source: new VectorSource({ url: '/geojson/cavite.geojson', format: new GeoJSON() }),
-      style: new Style({
-        fill: new Fill({ color: 'rgba(0, 0, 0, 0.05)' }),
-        stroke: new Stroke({ color: '#888', width: 1 }),
-      }),
+    // Greyed out, unselectable styling for the rest of the Philippines
+    const phLightStyle = new Style({
+      fill: new Fill({ color: 'rgba(215, 220, 228, 0.45)' }),
+      stroke: new Stroke({ color: 'rgba(148, 163, 184, 0.65)', width: 1 }),
     });
+    const phDarkStyle = new Style({
+      fill: new Fill({ color: 'rgba(30, 41, 59, 0.45)' }),
+      stroke: new Stroke({ color: 'rgba(100, 116, 139, 0.55)', width: 1 }),
+    });
+    const phStyleFunction = () => {
+      return document.body.classList.contains('dark') ? phDarkStyle : phLightStyle;
+    };
+
+    const philippinesLayer = new VectorLayer({
+      source: new VectorSource({ url: '/geojson/philippines.geojson', format: new GeoJSON() }),
+      style: phStyleFunction,
+      zIndex: 0,
+      properties: { isSelectable: false },
+    });
+    philippinesLayerRef.current = philippinesLayer;
 
     const cities = CITIES;
 
     mapRef.current = new OLMap({
       target: mapElement.current,
-      layers: [ caviteLayer ],
-      view: new View({ center: caviteCenter, zoom: 10, minZoom: 9, extent: looseExtent }),
+      layers: [ philippinesLayer ],
+      view: new View({ center: caviteCenter, zoom: 10, minZoom: 5.5, extent: phExtent }),
     });
 
-    // 2. Neon "Scan Area" Highlight Interaction
+    // 2. Neon "Scan Area" Highlight Interaction (filtered strictly to selectable Cavite layers)
     const selectHighlight = new Select({
       condition: click,
+      layers: (layer) => layer.get('isSelectable') === true,
       style: new Style({
-        fill: new Fill({ color: 'rgba(0, 255, 136, 0.1)' }), // Very faint neon glow
+        fill: new Fill({ color: 'rgba(0, 255, 136, 0.1)' }), // Faint neon glow so satellite/forecast imagery shows through
         stroke: new Stroke({ color: '#00FF88', width: 3 }),  // Bright neon green border
         text: new Text({
           font: 'bold 14px sans-serif',
@@ -487,6 +519,17 @@ const App: React.FC = () => {
     });
 
     mapRef.current.addInteraction(selectHighlight);
+
+    // Dynamic pointer cursor only for selectable Cavite municipalities
+    mapRef.current.on('pointermove', (evt) => {
+      if (evt.dragging) return;
+      const hit = mapRef.current?.hasFeatureAtPixel(evt.pixel, {
+        layerFilter: (l) => l.get('isSelectable') === true,
+      });
+      if (mapElement.current) {
+        mapElement.current.style.cursor = hit ? 'pointer' : '';
+      }
+    });
 
     // 3. Trigger Bridge on Click
     selectHighlight.on('select', (e) => {
@@ -572,8 +615,10 @@ const App: React.FC = () => {
 
             const layer = new VectorLayer({
               source: source,
+              zIndex: 10, // Rendered on top of the Philippines background layer (zIndex: 0)
+              properties: { isSelectable: true },
               style: new Style({
-                fill: new Fill({ color: 'rgba(150, 150, 150, 0.4)' }),
+                fill: new Fill({ color: '#969696' }), // Solid non-transparent fill
                 stroke: new Stroke({ color: 'rgba(0,0,0,0.3)', width: 1 }), // Subtle border
                 text: new Text({
                   text: displayName, 
@@ -596,6 +641,7 @@ const App: React.FC = () => {
 
     return () => {
       if (mapRef.current) mapRef.current.setTarget(undefined);
+      philippinesLayerRef.current = null;
       socket.current?.close();
     };
   }, []);
@@ -636,6 +682,7 @@ const App: React.FC = () => {
             crossOrigin: 'anonymous' 
           }),
           opacity: 0.8,
+          zIndex: 25,
         });
         mapRef.current.addLayer(layer);
         ndviLayerRef.current = layer;
@@ -684,6 +731,7 @@ const App: React.FC = () => {
               crossOrigin: 'anonymous' 
             }),
             opacity: 0.85,
+            zIndex: 25,
           });
           mapRef.current.addLayer(layer);
           ndviLayerRef.current = layer;
