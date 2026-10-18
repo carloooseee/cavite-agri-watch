@@ -6,6 +6,7 @@ import View from 'ol/View';
 import TileLayer from 'ol/layer/Tile';
 import { fromLonLat, transformExtent } from 'ol/proj';
 import VectorLayer from 'ol/layer/Vector';
+import VectorImageLayer from 'ol/layer/VectorImage';
 import VectorSource from 'ol/source/Vector';
 import GeoJSON from 'ol/format/GeoJSON';
 import { Style, Stroke, Fill, Text } from 'ol/style';
@@ -35,32 +36,34 @@ import {
   TrendingUp,
   Activity,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Menu,
+  ChevronRight
 } from 'lucide-react';
 
 const CITIES = [
-  { name: 'Alfonso', color: 'rgba(139, 69, 19, 0.5)' },
-  { name: 'Amadeo', color: 'rgba(205, 133, 63, 0.5)' },
-  { name: 'Bacoor', color: 'rgba(75, 192, 192, 0.5)' },
-  { name: 'Carmona', color: 'rgba(156, 163, 175, 0.5)' },
-  { name: 'Cavite City', color: 'rgba(83, 102, 255, 0.5)' },
-  { name: 'Dasmariñas', color: 'rgba(255, 99, 132, 0.5)' },
-  { name: 'General Emilio Aguinaldo', color: 'rgba(46, 139, 87, 0.5)' },
-  { name: 'General Trias', color: 'rgba(255, 206, 86, 0.5)' },
-  { name: 'Imus', color: 'rgba(54, 162, 235, 0.5)' },
-  { name: 'Indang', color: 'rgba(0, 128, 128, 0.5)' },
-  { name: 'Kawit', color: 'rgba(0, 191, 255, 0.5)' },
-  { name: 'Magallanes', color: 'rgba(255, 69, 0, 0.5)' },
-  { name: 'Maragondon', color: 'rgba(107, 142, 35, 0.5)' },
-  { name: 'Mendez', color: 'rgba(218, 165, 32, 0.5)' },
-  { name: 'Naic', color: 'rgba(100, 149, 237, 0.5)' },
-  { name: 'Noveleta', color: 'rgba(255, 140, 0, 0.5)' },
-  { name: 'Rosario', color: 'rgba(220, 20, 60, 0.5)' },
-  { name: 'Silang', color: 'rgba(255, 105, 180, 0.5)' },
-  { name: 'Tagaytay', color: 'rgba(255, 159, 64, 0.5)' },
-  { name: 'Tanza', color: 'rgba(123, 104, 238, 0.5)' },
-  { name: 'Ternate', color: 'rgba(64, 224, 208, 0.5)' },
-  { name: 'Trece Martires', color: 'rgba(153, 102, 255, 0.5)' }
+  { name: 'Alfonso', color: '#8D6E63' },                  // Warm Umber
+  { name: 'Amadeo', color: '#BCAAA4' },                   // Coffee Cream
+  { name: 'Bacoor', color: '#4DB6AC' },                   // Seafoam Teal
+  { name: 'Carmona', color: '#90A4AE' },                  // Slate Mineral
+  { name: 'Cavite City', color: '#64B5F6' },              // Coastal Azure
+  { name: 'Dasmariñas', color: '#F06292' },               // Rose Carmine
+  { name: 'General Emilio Aguinaldo', color: '#81C784' }, // Mountain Green
+  { name: 'General Trias', color: '#FFD54F' },            // Golden Straw
+  { name: 'Imus', color: '#4FC3F7' },                     // Sky Cyan
+  { name: 'Indang', color: '#26A69A' },                   // Emerald Sage
+  { name: 'Kawit', color: '#29B6F6' },                    // Bay Blue
+  { name: 'Magallanes', color: '#FF8A65' },               // Terracotta Coral
+  { name: 'Maragondon', color: '#9CCC65' },               // Forest Olive
+  { name: 'Mendez', color: '#DCE775' },                   // Pear Lime
+  { name: 'Naic', color: '#7986CB' },                     // Periwinkle Indigo
+  { name: 'Noveleta', color: '#FFB74D' },                 // Apricot Sun
+  { name: 'Rosario', color: '#E57373' },                  // Coral Red
+  { name: 'Silang', color: '#BA68C8' },                   // Lavender Violet
+  { name: 'Tagaytay', color: '#FFB300' },                 // Ridge Amber
+  { name: 'Tanza', color: '#9575CD' },                    // Soft Violet
+  { name: 'Ternate', color: '#4DD0E1' },                  // Marine Aqua
+  { name: 'Trece Martires', color: '#B39DDB' }            // Lilac Purple
 ];
 
 const App: React.FC = () => {
@@ -87,10 +90,18 @@ const App: React.FC = () => {
   const [lang, setLang] = useState<'EN' | 'TL'>('EN');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
-  // Google Maps UI States
   const [isDrawerOpen, setIsDrawerOpen] = useState(true);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  const handleToggleMenu = () => {
+    if (window.innerWidth <= 768) {
+      setIsMobileSidebarOpen(prev => !prev);
+    } else {
+      setIsDrawerOpen(prev => !prev);
+    }
+  };
 
   useEffect(() => {
     document.body.className = theme;
@@ -514,26 +525,59 @@ const App: React.FC = () => {
       return document.body.classList.contains('dark') ? phDarkStyle : phLightStyle;
     };
 
-    const philippinesLayer = new VectorLayer({
+    // 1. Optimized Vector Image Layer for the rest of the Philippines (cached off-screen raster for 60 FPS)
+    const philippinesLayer = new VectorImageLayer({
       source: new VectorSource({ url: '/geojson/philippines.geojson', format: new GeoJSON() }),
       style: phStyleFunction,
       zIndex: 0,
       properties: { isSelectable: false },
     });
-    philippinesLayerRef.current = philippinesLayer;
+    philippinesLayerRef.current = philippinesLayer as any;
 
-    const cities = CITIES;
+    // 2. High-performance single consolidated VectorLayer for all 22 Cavite municipalities
+    const caviteSource = new VectorSource();
+    const styleCache = new Map<string, Style>();
+
+    const getCityStyle = (feature: any) => {
+      const cityName = feature.get('name') || '';
+      const color = feature.get('color') || '#8D6E63';
+      const displayName = feature.get('displayName') || cityName;
+
+      let cached = styleCache.get(cityName);
+      if (!cached) {
+        cached = new Style({
+          fill: new Fill({ color }),
+          stroke: new Stroke({ color: '#1E293B', width: 1.8 }),
+          text: new Text({
+            text: displayName,
+            font: 'bold 15px Helvetica, Arial, sans-serif',
+            fill: new Fill({ color: '#0F172A' }),
+            stroke: new Stroke({ color: '#FFFFFF', width: 3.5 }),
+            overflow: true,
+          }),
+        });
+        styleCache.set(cityName, cached);
+      }
+      return cached;
+    };
+
+    const caviteLayer = new VectorLayer({
+      source: caviteSource,
+      zIndex: 10,
+      properties: { isSelectable: true },
+      style: getCityStyle,
+    });
 
     mapRef.current = new OLMap({
       target: mapElement.current,
-      layers: [ philippinesLayer ],
+      layers: [ philippinesLayer, caviteLayer ],
       view: new View({ center: caviteCenter, zoom: 10, minZoom: 5.5, extent: phExtent }),
     });
 
-    // 2. Neon "Scan Area" Highlight Interaction (filtered strictly to selectable Cavite layers)
+    // 3. Selection Highlight Interaction (filtered strictly to caviteLayer)
     const selectHighlight = new Select({
       condition: click,
-      layers: (layer) => layer.get('isSelectable') === true,
+      layers: [ caviteLayer ],
       style: new Style({
         fill: new Fill({ color: 'rgba(0, 255, 136, 0.1)' }), // Faint neon glow so satellite/forecast imagery shows through
         stroke: new Stroke({ color: '#00FF88', width: 3 }),  // Bright neon green border
@@ -547,18 +591,20 @@ const App: React.FC = () => {
 
     mapRef.current.addInteraction(selectHighlight);
 
-    // Dynamic pointer cursor only for selectable Cavite municipalities
-    mapRef.current.on('pointermove', (evt) => {
-      if (evt.dragging) return;
-      const hit = mapRef.current?.hasFeatureAtPixel(evt.pixel, {
-        layerFilter: (l) => l.get('isSelectable') === true,
+    // Dynamic pointer cursor only for desktop mice (bypassed on touch to prevent mobile frame drops)
+    if (typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches) {
+      mapRef.current.on('pointermove', (evt) => {
+        if (evt.dragging) return;
+        const hit = mapRef.current?.hasFeatureAtPixel(evt.pixel, {
+          layerFilter: (l) => l === caviteLayer,
+        });
+        if (mapElement.current) {
+          mapElement.current.style.cursor = hit ? 'pointer' : '';
+        }
       });
-      if (mapElement.current) {
-        mapElement.current.style.cursor = hit ? 'pointer' : '';
-      }
-    });
+    }
 
-    // 3. Trigger Bridge on Click
+    // 4. Trigger Bridge on Click
     selectHighlight.on('select', (e) => {
       if (e.selected.length > 0) {
         const feature = e.selected[0];
@@ -609,27 +655,25 @@ const App: React.FC = () => {
       }
     });
 
-    const loadCitiesSequentially = async () => {
-      for (const city of cities) {
+    // 5. Parallel Batch Feature Loading (all 22 cities fetched concurrently in parallel and added as 1 batch)
+    const loadCitiesParallel = async () => {
+      const geoJsonReader = new GeoJSON();
+      const promises = CITIES.map(async (city) => {
         try {
           const fileName = city.name.replace(/ /g, '_').toLowerCase();
           const res = await fetch(`/geojson/${fileName}.geojson`);
-          if (res.ok) {
-            const data = await res.json();
-            const source = new VectorSource({
-              features: new GeoJSON().readFeatures(data, { featureProjection: 'EPSG:3857' }),
-            });
-            const features = source.getFeatures();
-            if (features.length > 0) {
-              const geom = features[0].getGeometry();
-              if (geom) {
-                const geoJsonWriter = new GeoJSON();
-                const geomGeoJson = geoJsonWriter.writeGeometryObject(geom, {
-                  featureProjection: 'EPSG:3857',
-                  dataProjection: 'EPSG:4326',
-                });
-                cityDataMapRef.current.set(city.name, { geom, geomGeoJson });
-              }
+          if (!res.ok) return null;
+          const data = await res.json();
+          const features = geoJsonReader.readFeatures(data, { featureProjection: 'EPSG:3857' });
+          if (features.length > 0) {
+            const feat = features[0];
+            const geom = feat.getGeometry();
+            if (geom) {
+              const geomGeoJson = geoJsonReader.writeGeometryObject(geom, {
+                featureProjection: 'EPSG:3857',
+                dataProjection: 'EPSG:4326',
+              });
+              cityDataMapRef.current.set(city.name, { geom, geomGeoJson });
             }
             let displayName = city.name;
             if (displayName === "General Emilio Aguinaldo") {
@@ -641,32 +685,22 @@ const App: React.FC = () => {
             } else if (displayName === "Cavite City") {
               displayName = "Cavite\nCity";
             }
-
-            const layer = new VectorLayer({
-              source: source,
-              zIndex: 10, // Rendered on top of the Philippines background layer (zIndex: 0)
-              properties: { isSelectable: true },
-              style: new Style({
-                fill: new Fill({ color: '#969696' }), // Solid non-transparent fill
-                stroke: new Stroke({ color: 'rgba(0,0,0,0.3)', width: 1 }), // Subtle border
-                text: new Text({
-                  text: displayName, 
-                  font: 'bold 16px Helvetica, Arial, sans-serif',
-                  fill: new Fill({ color: '#333' }),
-                  stroke: new Stroke({ color: '#fff', width: 2 }),
-                  overflow: true
-                })
-              }),
-            });
-            if (mapRef.current) mapRef.current.addLayer(layer);
+            feat.set('name', city.name);
+            feat.set('color', city.color);
+            feat.set('displayName', displayName);
+            return feat;
           }
         } catch (e) {
           console.warn(`Failed to load boundary for ${city.name}`, e);
         }
-      }
+        return null;
+      });
+
+      const loadedFeatures = (await Promise.all(promises)).filter((f): f is NonNullable<typeof f> => f !== null);
+      caviteSource.addFeatures(loadedFeatures);
     };
 
-    loadCitiesSequentially();
+    loadCitiesParallel();
 
     return () => {
       if (mapRef.current) mapRef.current.setTarget(undefined);
@@ -1068,11 +1102,12 @@ const App: React.FC = () => {
         <div className="gm-search-card">
           <button 
             type="button" 
-            className="gm-search-icon-btn"
-            onClick={() => setIsSearchOpen(!isSearchOpen)}
-            title="Search Cavite municipalities"
+            className="gm-search-icon-btn gm-hamburger-btn"
+            onClick={handleToggleMenu}
+            title={lang === 'EN' ? "Menu & Function Controls" : "Menu at mga Kontrol"}
+            aria-label="Toggle menu"
           >
-            <Search size={20} />
+            <Menu size={20} />
           </button>
           
           <div className="gm-search-input-container">
@@ -1097,7 +1132,7 @@ const App: React.FC = () => {
             />
           </div>
 
-          {searchQuery && (
+          {searchQuery ? (
             <button 
               type="button" 
               className="gm-search-icon-btn"
@@ -1108,6 +1143,15 @@ const App: React.FC = () => {
               title="Clear search"
             >
               <X size={18} />
+            </button>
+          ) : (
+            <button 
+              type="button" 
+              className="gm-search-icon-btn"
+              onClick={() => setIsSearchOpen(!isSearchOpen)}
+              title="Search"
+            >
+              <Search size={18} />
             </button>
           )}
         </div>
@@ -1139,7 +1183,7 @@ const App: React.FC = () => {
                   className={`gm-dropdown-item ${activeZone === c.name ? 'active' : ''}`}
                   onClick={() => handleCitySelectChange(c.name)}
                 >
-                  <MapPin size={16} />
+                  <MapPin size={16} color={c.color} />
                   <span>{c.name}</span>
                   <span className="gm-dropdown-item-sub">Municipality</span>
                 </div>
@@ -1212,28 +1256,78 @@ const App: React.FC = () => {
           </button>
         </div>
 
-        {/* 5. Left Floating Place Card / Drawer (Google Maps Drawer) */}
+        {/* 5. Left Floating Place Card / Drawer (Google Maps Drawer / Sidebar) */}
         {isDrawerOpen && (
-          <aside className="gm-place-drawer">
+          <aside className={`gm-place-drawer ${isMobileSidebarOpen ? 'mobile-open' : ''}`}>
+        {/* Mobile Top Header */}
+        <div className="gm-mobile-drawer-header">
+          <div className="gm-mobile-drawer-brand">
+            <MapPin size={18} color="var(--gm-primary-blue)" />
+            <span>Cavite Agri-Watch</span>
+          </div>
+          <div className="gm-mobile-drawer-controls">
+            <div className="gm-lang-toggle">
+              <button 
+                type="button" 
+                onClick={() => setLang('EN')} 
+                className={`gm-lang-btn ${lang === 'EN' ? 'active' : ''}`}
+              >
+                EN
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setLang('TL')} 
+                className={`gm-lang-btn ${lang === 'TL' ? 'active' : ''}`}
+              >
+                TL
+              </button>
+            </div>
+            <button 
+              type="button" 
+              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
+              className="gm-icon-btn"
+              title={theme === 'light' ? "Switch to Dark Mode" : "Switch to Light Mode"}
+              aria-label="Toggle theme"
+            >
+              {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+            </button>
+            <button
+              type="button"
+              className="gm-mobile-close-btn"
+              onClick={() => setIsMobileSidebarOpen(false)}
+              title="Close sidebar"
+              aria-label="Close sidebar"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
         {/* Header */}
         <div className="gm-place-header">
           <div className="gm-place-title-row">
             <div>
-              <h2 className="gm-place-title">{activeZone}</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {activeZone !== "Cavite Province" && (
+                  <span 
+                    style={{ 
+                      width: '12px', 
+                      height: '12px', 
+                      borderRadius: '50%', 
+                      backgroundColor: CITIES.find(c => c.name === activeZone)?.color || 'var(--gm-primary-blue)',
+                      display: 'inline-block',
+                      flexShrink: 0
+                    }} 
+                  />
+                )}
+                <h2 className="gm-place-title">{activeZone}</h2>
+              </div>
               <p className="gm-place-subtitle">
                 {activeZone === "Cavite Province" 
                   ? "Cavite Province, Philippines • Regional Overview"
                   : `${activeZone}, Cavite • Agricultural Zone`}
               </p>
             </div>
-            <button 
-              type="button" 
-              className="gm-place-close-btn"
-              onClick={() => setIsDrawerOpen(false)}
-              title="Close card"
-            >
-              <X size={20} />
-            </button>
           </div>
 
           <div className="gm-status-badge">
@@ -1269,6 +1363,17 @@ const App: React.FC = () => {
               <span>Satellite</span>
             </button>
           )}
+
+          <button 
+            type="button"
+            className="gm-action-btn-item"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+          >
+            <div className={`gm-action-circle ${showAdvanced ? 'active' : ''}`}>
+              <Info size={18} />
+            </div>
+            <span>{showAdvanced ? (lang === 'EN' ? 'Hide Info' : 'Itago') : (lang === 'EN' ? 'Details' : 'Detalye')}</span>
+          </button>
 
           <button 
             type="button"
@@ -1512,6 +1617,44 @@ const App: React.FC = () => {
       </aside>
     )}
   </div>
+
+      {/* 6. Mobile Floating Stacked Status & Region Card */}
+      <div 
+        className="gm-mobile-status-card" 
+        onClick={() => setIsMobileSidebarOpen(true)}
+        role="button"
+        tabIndex={0}
+      >
+        <div className="gm-mobile-status-info">
+          <div className="gm-mobile-zone-name">
+            {activeZone !== "Cavite Province" && (
+              <span 
+                className="gm-mobile-color-dot"
+                style={{ backgroundColor: CITIES.find(c => c.name === activeZone)?.color || 'var(--gm-primary-blue)' }} 
+              />
+            )}
+            <span>{activeZone}</span>
+          </div>
+          <div className="gm-mobile-status-row">
+            <span className="gm-status-dot" style={{ backgroundColor: getStatusColor(healthStatus) }}></span>
+            <span className="gm-mobile-status-text">
+              {t.status}: <strong style={{ color: getStatusColor(healthStatus) }}>{healthStatus}</strong>
+            </span>
+          </div>
+        </div>
+        <div className="gm-mobile-open-pill-btn">
+          <span>{lang === 'EN' ? 'Details' : 'Detalye'}</span>
+          <ChevronRight size={16} />
+        </div>
+      </div>
+
+      {/* Mobile Sidebar Backdrop */}
+      {isMobileSidebarOpen && (
+        <div 
+          className="gm-sidebar-backdrop"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
 
 
 
