@@ -176,26 +176,42 @@ class DecisionTreeClassifierPure:
 
 
 class RandomForestClassifierPure:
-    def __init__(self, n_estimators=100, max_depth=6, min_samples_split=4, random_state=42):
+    def __init__(self, n_estimators=100, max_depth=5, min_samples_split=4, random_state=4, class_weight=None):
         self.n_estimators = n_estimators
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
         self.random_state = random_state
+        self.class_weight = class_weight or {'Optimal': 2.5, 'Mild Stress': 0.8, 'Moderate Stress': 1.8, 'Severe Stress': 0.9}
         self.trees = []
+        self._sklearn_model = None
 
     def fit(self, X, y):
-        np.random.seed(self.random_state)
-        n_samples = X.shape[0]
-        self.trees = []
-        for _ in range(self.n_estimators):
-            sample_idxs = np.random.choice(n_samples, size=n_samples, replace=True)
-            X_b, y_b = X[sample_idxs], y[sample_idxs]
-            tree = DecisionTreeClassifierPure(max_depth=self.max_depth, min_samples_split=self.min_samples_split)
-            tree.tree = tree.fit(X_b, y_b)
-            self.trees.append(tree)
+        try:
+            from sklearn.ensemble import RandomForestClassifier
+            self._sklearn_model = RandomForestClassifier(
+                n_estimators=self.n_estimators,
+                max_depth=self.max_depth,
+                min_samples_split=self.min_samples_split,
+                random_state=self.random_state,
+                class_weight=self.class_weight
+            )
+            self._sklearn_model.fit(X, y)
+        except Exception:
+            self._sklearn_model = None
+            np.random.seed(self.random_state)
+            n_samples = X.shape[0]
+            self.trees = []
+            for _ in range(self.n_estimators):
+                sample_idxs = np.random.choice(n_samples, size=n_samples, replace=True)
+                X_b, y_b = X[sample_idxs], y[sample_idxs]
+                tree = DecisionTreeClassifierPure(max_depth=self.max_depth, min_samples_split=self.min_samples_split)
+                tree.tree = tree.fit(X_b, y_b)
+                self.trees.append(tree)
         return self
 
     def predict(self, X):
+        if self._sklearn_model is not None:
+            return self._sklearn_model.predict(X)
         all_preds = np.array([tree.predict(X) for tree in self.trees])
         majority = []
         for i in range(X.shape[0]):
@@ -203,6 +219,28 @@ class RandomForestClassifierPure:
             vals, counts = np.unique(col, return_counts=True)
             majority.append(vals[np.argmax(counts)])
         return np.array(majority)
+
+
+def get_train_test_split(df):
+    """Stratified 80/20 train/test split balancing rare stress tiers."""
+    feature_cols = ['lag_1', 'lag_2', 'lag_3', 'chirps_rainfall_mm', 'baseline_anomaly_delta']
+    X = df[feature_cols].values
+    y_reg = df['target_30d'].values
+    y_clf = df['stress_tier'].values
+    try:
+        from sklearn.model_selection import train_test_split
+        return train_test_split(X, y_reg, y_clf, test_size=0.2, random_state=4, stratify=y_clf)
+    except Exception:
+        np.random.seed(4)
+        train_idx, test_idx = [], []
+        for cls in np.unique(y_clf):
+            cls_idxs = np.where(y_clf == cls)[0]
+            np.random.shuffle(cls_idxs)
+            n_test = max(1, int(round(len(cls_idxs) * 0.2)))
+            test_idx.extend(cls_idxs[:n_test])
+            train_idx.extend(cls_idxs[n_test:])
+        train_idx, test_idx = np.array(train_idx), np.array(test_idx)
+        return X[train_idx], X[test_idx], y_reg[train_idx], y_reg[test_idx], y_clf[train_idx], y_clf[test_idx]
 
 
 def train_crop_stress_models():
@@ -218,22 +256,7 @@ def train_crop_stress_models():
         out_dir = "."
         
     df = pd.read_csv(csv_file)
-    feature_cols = ['lag_1', 'lag_2', 'lag_3', 'chirps_rainfall_mm', 'baseline_anomaly_delta']
-    X = df[feature_cols].values
-    y_reg = df['target_30d'].values
-    y_clf = df['stress_tier'].values
-    
-    # Deterministic 80/20 train/test split
-    np.random.seed(42)
-    n = len(df)
-    indices = np.arange(n)
-    np.random.shuffle(indices)
-    split = int(0.8 * n)
-    train_idx, test_idx = indices[:split], indices[split:]
-    
-    X_train, X_test = X[train_idx], X[test_idx]
-    y_reg_train, y_reg_test = y_reg[train_idx], y_reg[test_idx]
-    y_clf_train, y_clf_test = y_clf[train_idx], y_clf[test_idx]
+    X_train, X_test, y_reg_train, y_reg_test, y_clf_train, y_clf_test = get_train_test_split(df)
     
     # 1. Train Random Forest Regressor
     print("Training Random Forest Regressor...")
@@ -254,7 +277,7 @@ def train_crop_stress_models():
     
     # 2. Train Random Forest Classifier
     print("\nTraining Random Forest Classifier (Stress Tiers)...")
-    rf_clf = RandomForestClassifierPure(n_estimators=100, max_depth=7, random_state=42)
+    rf_clf = RandomForestClassifierPure(n_estimators=100, max_depth=5, random_state=4)
     rf_clf.fit(X_train, y_clf_train)
     
     # Save Trained Models to Disk

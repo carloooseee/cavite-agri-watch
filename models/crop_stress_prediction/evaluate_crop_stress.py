@@ -8,7 +8,8 @@ import seaborn as sns
 # Import model class definitions for pickle unpickling
 from train_crop_stress import (
     RandomForestRegressorPure, RandomForestClassifierPure,
-    DecisionTreeRegressorPure, DecisionTreeClassifierPure
+    DecisionTreeRegressorPure, DecisionTreeClassifierPure,
+    get_train_test_split
 )
 
 def evaluate_crop_stress():
@@ -28,24 +29,10 @@ def evaluate_crop_stress():
         clf_model_path = "rf_stress_classifier.pkl"
         
     df = pd.read_csv(csv_file)
-    feature_cols = ['lag_1', 'lag_2', 'lag_3', 'chirps_rainfall_mm', 'baseline_anomaly_delta']
     feature_labels = ['Lagged Vigor (T)', 'Lagged Vigor (T-15)', 'Lagged Vigor (T-30)', 'CHIRPS Rainfall (mm)', 'Baseline Anomaly Delta']
     
-    X = df[feature_cols].values
-    y_reg = df['target_30d'].values
-    y_clf = df['stress_tier'].values
-    
-    # Same deterministic 80/20 train/test split
-    np.random.seed(42)
-    n = len(df)
-    indices = np.arange(n)
-    np.random.shuffle(indices)
-    split = int(0.8 * n)
-    train_idx, test_idx = indices[:split], indices[split:]
-    
-    X_test = X[test_idx]
-    y_reg_test = y_reg[test_idx]
-    y_clf_test = y_clf[test_idx]
+    # Synchronized stratified 80/20 train/test split
+    X_train, X_test, y_reg_train, y_reg_test, y_clf_train, y_clf_test = get_train_test_split(df)
     
     with open(reg_model_path, 'rb') as f:
         rf_reg = pickle.load(f)
