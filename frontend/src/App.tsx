@@ -16,6 +16,27 @@ import ValidationEvidence from './components/ValidationEvidence';
 import XYZ from 'ol/source/XYZ';
 import { jsPDF } from "jspdf";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  Search,
+  MapPin,
+  Sparkles,
+  Satellite,
+  FileDown,
+  Eye,
+  EyeOff,
+  Layers,
+  Plus,
+  Minus,
+  Crosshair,
+  Sun,
+  Moon,
+  X,
+  Info,
+  TrendingUp,
+  Activity,
+  CheckCircle2,
+  AlertTriangle
+} from 'lucide-react';
 
 const CITIES = [
   { name: 'Alfonso', color: 'rgba(139, 69, 19, 0.5)' },
@@ -65,6 +86,11 @@ const App: React.FC = () => {
   const [activeZone, setActiveZone] = useState<string>("Cavite Province");
   const [lang, setLang] = useState<'EN' | 'TL'>('EN');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  // Google Maps UI States
+  const [isDrawerOpen, setIsDrawerOpen] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   useEffect(() => {
     document.body.className = theme;
@@ -147,12 +173,13 @@ const App: React.FC = () => {
   const t = translations[lang];
 
   const getStatusColor = (status: string) => {
+    const isDark = theme === 'dark';
     switch(status) {
-      case "No Stress": return "#00FF88";       // Neon Green
-      case "Mild Stress": return "#FFFF00";     // Yellow
-      case "Moderate Stress": return "#FF8800"; // Orange
-      case "Severe Stress": return "#FF0000";   // Red
-      default: return "#A0AEC0";
+      case "No Stress": return isDark ? "#4ade80" : "#15803d";       // Crisp green
+      case "Mild Stress": return isDark ? "#facc15" : "#b45309";     // Warm high-contrast amber (clearly visible on white)
+      case "Moderate Stress": return isDark ? "#fb923c" : "#ea580c"; // Deep orange
+      case "Severe Stress": return isDark ? "#f87171" : "#dc2626";   // Strong red
+      default: return isDark ? "#94a3b8" : "#64748b";
     }
   };
 
@@ -537,6 +564,8 @@ const App: React.FC = () => {
         const feature = e.selected[0];
         const cityName = feature.get('name') || "Unknown Area";
         setActiveZone(cityName);
+        setSearchQuery(cityName);
+        setIsDrawerOpen(true);
 
         // Extract the feature's exact polygon in EPSG:4326 for the backend
         const geom = feature.getGeometry();
@@ -897,6 +926,9 @@ const App: React.FC = () => {
 
   const handleCitySelectChange = (cityName: string) => {
     setForecast(null);
+    setSearchQuery(cityName === "Cavite Province" ? "" : cityName);
+    setIsSearchOpen(false);
+    setIsDrawerOpen(true);
 
     if (cityName === "Cavite Province") {
       setActiveZone("Cavite Province");
@@ -953,341 +985,591 @@ const App: React.FC = () => {
     }
   };
 
+  const handleZoomIn = () => {
+    const view = mapRef.current?.getView();
+    if (view) {
+      view.animate({ zoom: (view.getZoom() ?? 10) + 1, duration: 250 });
+    }
+  };
+
+  const handleZoomOut = () => {
+    const view = mapRef.current?.getView();
+    if (view) {
+      view.animate({ zoom: (view.getZoom() ?? 10) - 1, duration: 250 });
+    }
+  };
+
+  const handleRecenter = () => {
+    if (activeZone !== "Cavite Province") {
+      const cityData = cityDataMapRef.current.get(activeZone);
+      if (cityData?.geom && mapRef.current) {
+        mapRef.current.getView().fit(cityData.geom.getExtent(), {
+          duration: 800,
+          padding: [80, 80, 80, 80],
+          maxZoom: 14
+        });
+        return;
+      }
+    }
+    if (mapRef.current) {
+      const caviteCenter = fromLonLat([120.90, 14.28]);
+      mapRef.current.getView().animate({ center: caviteCenter, zoom: 10, duration: 800 });
+    }
+  };
+
   return (
     <div className="app-container">
-      <header className="top-header">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <h1>{t.title}</h1>
-            <span style={{ fontSize: '0.75rem', backgroundColor: '#E2E8F0', padding: '2px 6px', borderRadius: '4px', color: '#4A5568', fontWeight: 'bold' }}>{lang === 'EN' ? 'Functional Prototype' : 'Functional na Prototype'}</span>
-          </div>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="btn-secondary" style={{ marginRight: '10px' }}>
-              {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
-            </button>
-            <button onClick={() => setLang('EN')} className={lang === 'EN' ? 'btn-primary' : ''}>EN</button>
-            <button onClick={() => setLang('TL')} className={lang === 'TL' ? 'btn-primary' : ''}>TL</button>
-          </div>
-        </div>
-        <div style={{ fontSize: '0.9rem' }}>
-          {t.status_system} <span style={{ color: '#00FF88', fontWeight: 'bold' }}>{t.status_online}</span> | {t.bridge} <span style={{ color: '#00FF88', fontWeight: 'bold' }}>{t.bridge_active}</span>
-        </div>
-      </header>
+      {/* 1. Map Canvas (Full screen background) */}
+      <div ref={mapElement} className="map-container"></div>
 
-      <div className="main-layout">
-        <nav className="sidebar">
-          <div className="feature-box">
-            <h3>Select Region / Municipality</h3>
-            <select
-              value={activeZone}
-              onChange={(e) => handleCitySelectChange(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '8px 10px',
-                borderRadius: '6px',
-                border: '1px solid #CBD5E0',
-                fontSize: '0.9rem',
-                backgroundColor: '#FFFFFF',
-                color: '#2D3748',
-                cursor: 'pointer',
-                marginTop: '8px',
-                outline: 'none'
+      {/* 2. Top-Center Floating Zone Pill */}
+      <div className="gm-top-center-pill">
+        <MapPin size={16} color="var(--gm-primary-blue)" />
+        <span>{activeZone === "Cavite Province" ? "Cavite Province Overview" : `${activeZone}, Cavite`}</span>
+      </div>
+
+      {/* 3. Top-Right Floating Utility Bar */}
+      <div className="gm-utility-bar">
+        <div className="gm-utility-pill">
+          <span className="gm-status-dot-pulse"></span>
+          <span>{t.status_online}</span>
+          <span style={{ color: 'var(--gm-border)' }}>|</span>
+          <span>{t.bridge_active}</span>
+        </div>
+        <div className="gm-lang-toggle">
+          <button 
+            type="button" 
+            onClick={() => setLang('EN')} 
+            className={`gm-lang-btn ${lang === 'EN' ? 'active' : ''}`}
+          >
+            EN
+          </button>
+          <button 
+            type="button" 
+            onClick={() => setLang('TL')} 
+            className={`gm-lang-btn ${lang === 'TL' ? 'active' : ''}`}
+          >
+            TL
+          </button>
+        </div>
+        <button 
+          type="button" 
+          onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
+          className="gm-icon-btn"
+          title={theme === 'light' ? "Switch to Dark Mode" : "Switch to Light Mode"}
+          aria-label="Toggle theme"
+        >
+          {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+        </button>
+      </div>
+
+      {/* 4. Top-Left Google Maps Search Box & Action Chips */}
+      <div className="gm-search-wrapper">
+        <div className="gm-search-card">
+          <button 
+            type="button" 
+            className="gm-search-icon-btn"
+            onClick={() => setIsSearchOpen(!isSearchOpen)}
+            title="Search Cavite municipalities"
+          >
+            <Search size={20} />
+          </button>
+          
+          <div className="gm-search-input-container">
+            <input 
+              type="text"
+              className="gm-search-input"
+              placeholder={lang === 'EN' ? "Search Cavite municipality or city..." : "Maghanap ng munisipalidad o lungsod..."}
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setIsSearchOpen(true);
               }}
-            >
-              <option value="Cavite Province">Cavite Province (All Regions)</option>
-              {CITIES.map((c) => (
-                <option key={c.name} value={c.name}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              onFocus={() => setIsSearchOpen(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const matches = CITIES.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
+                  if (matches.length > 0) {
+                    handleCitySelectChange(matches[0].name);
+                  }
+                }
+              }}
+            />
           </div>
 
-          <div className="feature-box">
-            <h3>{t.health_title}</h3>
-            <p>{t.zone}: {activeZone}</p>
-            <p><strong>{t.status}: <span style={{ color: getStatusColor(healthStatus) }}>{healthStatus}</span></strong></p>
-          </div>
-
-          <div className="controls-container">
+          {searchQuery && (
             <button 
-              className="btn-primary"
-              onClick={handleForesee} 
-              disabled={isForecasting}
-              style={{ width: '100%' }}
+              type="button" 
+              className="gm-search-icon-btn"
+              onClick={() => {
+                setSearchQuery("");
+                handleCitySelectChange("Cavite Province");
+              }}
+              title="Clear search"
             >
-              {isForecasting ? 'Foreseeing...' : t.run_forecast}
+              <X size={18} />
             </button>
+          )}
+        </div>
 
-            {activeZone !== "Cavite Province" && (
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%' }}>
-                <button 
-                  className="btn-primary"
-                  onClick={handleToggleSatellite} 
-                  disabled={isSatelliteLoading}
-                  style={{ flex: 1 }}
-                  id="btn-satellite-toggle"
+        {/* Backdrop for closing search menu */}
+        {isSearchOpen && (
+          <div 
+            style={{ position: 'fixed', inset: 0, zIndex: 28 }}
+            onClick={() => setIsSearchOpen(false)}
+          />
+        )}
+
+        {/* Dropdown Menu for Autocomplete / Municipality Search */}
+        {isSearchOpen && (
+          <div className="gm-dropdown-menu">
+            <div 
+              className={`gm-dropdown-item ${activeZone === "Cavite Province" ? 'active' : ''}`}
+              onClick={() => handleCitySelectChange("Cavite Province")}
+            >
+              <MapPin size={16} />
+              <span>Cavite Province (All Regions)</span>
+              <span className="gm-dropdown-item-sub">Overview</span>
+            </div>
+            {CITIES
+              .filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()))
+              .map(c => (
+                <div 
+                  key={c.name}
+                  className={`gm-dropdown-item ${activeZone === c.name ? 'active' : ''}`}
+                  onClick={() => handleCitySelectChange(c.name)}
                 >
-                  {isSatelliteLoading
-                    ? 'Loading Satellite...'
-                    : isSatelliteLoaded
-                      ? (showSatellite ? 'Hide Satellite Image' : 'View Satellite Image')
-                      : 'View Satellite Image'}
-                </button>
-                {isSatelliteLoaded && (
-                  <button 
-                    type="button"
-                    onClick={handleToggleSatelliteVisibility}
-                    id="btn-satellite-eye-toggle"
-                    title={showSatellite ? "Hide Satellite Image (Keeps cached layer)" : "Show Satellite Image (Instant)"}
-                    aria-label={showSatellite ? "Hide Satellite Image" : "Show Satellite Image"}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: 'none',
-                      border: 'none',
-                      outline: 'none',
-                      color: showSatellite ? '#2B6CB0' : '#A0AEC0',
-                      cursor: 'pointer',
-                      padding: '4px',
-                      transition: 'color 0.2s ease, transform 0.15s ease'
-                    }}
-                  >
-                    {showSatellite ? (
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                      </svg>
-                    ) : (
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                        <line x1="1" y1="1" x2="23" y2="23"></line>
-                      </svg>
-                    )}
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Process Bar with live percentage */}
-            {actionProgress && (
-              <div className="feature-box">
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 'bold', color: '#2D3748', marginBottom: '4px' }}>
-                  <span>{actionProgress.title}</span>
-                  <span style={{ color: '#2B6CB0' }}>{actionProgress.percent}%</span>
+                  <MapPin size={16} />
+                  <span>{c.name}</span>
+                  <span className="gm-dropdown-item-sub">Municipality</span>
                 </div>
-                <div style={{ width: '100%', height: '8px', background: '#E2E8F0', borderRadius: '4px', overflow: 'hidden', marginBottom: '6px' }}>
-                  <div style={{ width: `${actionProgress.percent}%`, height: '100%', background: actionProgress.percent === 100 ? '#38A169' : '#3182CE', transition: 'width 0.3s ease' }}></div>
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#718096' }}>
-                  {actionProgress.status}
-                </div>
-              </div>
-            )}
-
-            {/* Land Cover Separation Legend */}
-            {activeLayer === 'DynamicWorld' && (
-              <div className="feature-box" style={{ fontSize: '0.75rem' }}>
-                <strong>Land Cover Mask (10m Resolution)</strong>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
-                  <div><span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#00FF88', borderRadius: '2px', marginRight: '6px' }}></span><strong>Vegetation</strong> (Crops, Trees, Grass)</div>
-                  <div><span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#FF0000', borderRadius: '2px', marginRight: '6px' }}></span><strong>Built Area</strong> (Roads, Buildings, Infrastructure)</div>
-                </div>
-              </div>
-            )}
+              ))}
           </div>
+        )}
 
-          {forecast && (
-            <div className="feature-box">
-              <h3 style={{ borderBottom: '1px solid #eee', paddingBottom: '5px', marginBottom: '10px' }}>{t.forecast_title}</h3>
-              <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '8px' }}>Target: <strong>{forecast.city || activeZone}</strong></p>
-              
-              <p>Overall Crop Health: <strong style={{ color: getStatusColor(healthStatus) }}>{healthStatus}</strong></p>
-              
-              <p style={{ fontSize: '0.85rem', lineHeight: '1.4', marginTop: '8px', borderLeft: '3px solid #00FF88', paddingLeft: '8px', fontStyle: 'italic', color: '#4A5568' }}>
-                "{forecast.meaning}"
-              </p>
-              <p style={{ fontSize: '0.75rem', marginTop: '10px', color: '#718096', borderTop: '1px dashed #E2E8F0', paddingTop: '8px' }}>
-                <strong>Expert Advice:</strong> {forecast.expert_advice}
-              </p>
-              
+        {/* Google Maps Action Chips */}
+        <div className="gm-chips-container">
+          <button 
+            type="button"
+            className={`gm-chip ${isForecasting ? 'active' : ''}`}
+            onClick={handleForesee}
+            disabled={isForecasting}
+          >
+            <Sparkles size={15} color="var(--gm-primary-blue)" />
+            <span>{isForecasting ? (lang === 'EN' ? 'Forecasting...' : 'Tinataya...') : t.run_forecast}</span>
+          </button>
+
+          {activeZone !== "Cavite Province" && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
               <button 
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                style={{ marginTop: '10px', background: 'none', border: 'none', color: '#2B6CB0', cursor: 'pointer', textDecoration: 'underline', fontSize: '0.8rem', padding: 0 }}
+                type="button"
+                className={`gm-chip ${showSatellite ? 'active' : ''}`}
+                onClick={handleToggleSatellite}
+                disabled={isSatelliteLoading}
+                id="btn-satellite-toggle"
               >
-                {showAdvanced ? 'Hide Technical Details' : 'Show Technical Details'}
+                <Satellite size={15} color="var(--gm-green)" />
+                <span>
+                  {isSatelliteLoading
+                    ? (lang === 'EN' ? 'Loading Satellite...' : 'Naglo-load...')
+                    : isSatelliteLoaded
+                      ? (showSatellite ? (lang === 'EN' ? 'Hide Satellite' : 'Itago ang Satellite') : (lang === 'EN' ? 'Satellite View' : 'Tingnan ang Satellite'))
+                      : (lang === 'EN' ? 'Satellite View' : 'Tingnan ang Satellite')}
+                </span>
               </button>
-
-              {showAdvanced && (
-                <div className="feature-box" style={{ marginTop: '10px' }}>
-                  <p>{t.value} (NDVI): <strong>{forecast.forecast_30_days.toFixed(2)}</strong></p>
-                  <p>{t.trend}: <span style={{ color: forecast.trend.includes('+') ? '#008000' : '#b22222', fontWeight: 'bold' }}>{forecast.trend}</span></p>
-                  <p><small>CNN Softmax Prob: <strong>{forecast.softmax_prob != null ? (forecast.softmax_prob * 100).toFixed(1) + '%' : '--'}</strong></small></p>
-                  {forecast.landcover && (
-                    <p><small>CNN Land Cover: <strong>{forecast.landcover.label}</strong> (vegetation prob. {(forecast.landcover.vegetated_probability * 100).toFixed(1)}%)</small></p>
-                  )}
-                  {forecast.rainfall_mm != null && (
-                    <p><small>CHIRPS Rainfall (30d): <strong>{forecast.rainfall_mm.toFixed(1)} mm</strong></small></p>
-                  )}
-                  {forecast.opa_alert_probability != null && (
-                    <p><small>OPA-Calibrated Damage Alert: <strong>{(forecast.opa_alert_probability * 100).toFixed(0)}%</strong> (alert score {forecast.opa_alert_score})</small></p>
-                  )}
-                  {forecast.model_used && <p><small>Model: <strong>{forecast.model_used}</strong></small></p>}
-                  <p><small>{forecast.accuracy_metric}</small></p>
-                  <ValidationEvidence />
-                  
-                  <div style={{ marginTop: '15px', fontSize: '0.75rem', borderTop: '1px solid #CBD5E0', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '2px', color: '#2D3748' }}>NDVI Reference Scale (Vegetation Vigor):</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4A5568' }}>
-                      <div style={{ width: '10px', height: '10px', backgroundColor: '#00FF88', borderRadius: '50%', flexShrink: 0 }}></div>
-                      <span style={{ width: '65px', fontWeight: 'bold' }}>0.7 to 1.0</span> 
-                      <span>Dense Canopy / Peak Vigor (No Stress)</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4A5568' }}>
-                      <div style={{ width: '10px', height: '10px', backgroundColor: '#ADFF2F', borderRadius: '50%', flexShrink: 0 }}></div>
-                      <span style={{ width: '65px', fontWeight: 'bold' }}>0.5 to 0.7</span> 
-                      <span>Moderate Canopy (Healthy/Developing)</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4A5568' }}>
-                      <div style={{ width: '10px', height: '10px', backgroundColor: '#FFFF00', borderRadius: '50%', flexShrink: 0 }}></div>
-                      <span style={{ width: '65px', fontWeight: 'bold' }}>0.3 to 0.5</span> 
-                      <span>Sparse Cover / Early Stage (Mild Stress)</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4A5568' }}>
-                      <div style={{ width: '10px', height: '10px', backgroundColor: '#FF8800', borderRadius: '50%', flexShrink: 0 }}></div>
-                      <span style={{ width: '65px', fontWeight: 'bold' }}>0.1 to 0.3</span> 
-                      <span>Bare Soil / Senescence (Moderate Stress)</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4A5568' }}>
-                      <div style={{ width: '10px', height: '10px', backgroundColor: '#FF0000', borderRadius: '50%', flexShrink: 0 }}></div>
-                      <span style={{ width: '65px', fontWeight: 'bold' }}>&lt; 0.1</span> 
-                      <span>Barren / Water / Urban (Severe Stress)</span>
-                    </div>
-                  </div>
-                </div>
+              {isSatelliteLoaded && (
+                <button 
+                  type="button"
+                  onClick={handleToggleSatelliteVisibility}
+                  id="btn-satellite-eye-toggle"
+                  title={showSatellite ? "Hide Satellite Image (Keeps cached layer)" : "Show Satellite Image (Instant)"}
+                  aria-label={showSatellite ? "Hide Satellite Image" : "Show Satellite Image"}
+                  className="gm-icon-btn"
+                  style={{ width: '32px', height: '32px' }}
+                >
+                  {showSatellite ? <Eye size={16} color="var(--gm-primary-blue)" /> : <EyeOff size={16} color="var(--gm-text-tertiary)" />}
+                </button>
               )}
             </div>
           )}
+
+          <button 
+            type="button"
+            className="gm-chip"
+            onClick={handleDownloadReport}
+          >
+            <FileDown size={15} color="#ea4335" />
+            <span>{t.download_report}</span>
+          </button>
+
+          <button 
+            type="button"
+            className={`gm-chip ${showAdvanced ? 'active' : ''}`}
+            onClick={() => setShowAdvanced(!showAdvanced)}
+          >
+            <Info size={15} color="#fbbc04" />
+            <span>{showAdvanced ? (lang === 'EN' ? 'Hide Details' : 'Itago ang Detalye') : (lang === 'EN' ? 'Spectral Details' : 'Spectral Detalye')}</span>
+          </button>
+        </div>
+
+        {/* 5. Left Floating Place Card / Drawer (Google Maps Drawer) */}
+        {isDrawerOpen && (
+          <aside className="gm-place-drawer">
+        {/* Header */}
+        <div className="gm-place-header">
+          <div className="gm-place-title-row">
+            <div>
+              <h2 className="gm-place-title">{activeZone}</h2>
+              <p className="gm-place-subtitle">
+                {activeZone === "Cavite Province" 
+                  ? "Cavite Province, Philippines • Regional Overview"
+                  : `${activeZone}, Cavite • Agricultural Zone`}
+              </p>
+            </div>
+            <button 
+              type="button" 
+              className="gm-place-close-btn"
+              onClick={() => setIsDrawerOpen(false)}
+              title="Close card"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="gm-status-badge">
+            <span className="gm-status-dot" style={{ backgroundColor: getStatusColor(healthStatus) }}></span>
+            <span>{t.status}: <strong style={{ color: getStatusColor(healthStatus) }}>{healthStatus}</strong></span>
+          </div>
+        </div>
+
+        {/* Circular Action Buttons Row */}
+        <div className="gm-action-buttons-row">
+          <button 
+            type="button"
+            className="gm-action-btn-item"
+            onClick={handleForesee}
+            disabled={isForecasting}
+          >
+            <div className={`gm-action-circle ${isForecasting ? 'active' : ''}`}>
+              <Sparkles size={18} />
+            </div>
+            <span>{t.run_forecast}</span>
+          </button>
+
+          {activeZone !== "Cavite Province" && (
+            <button 
+              type="button"
+              className="gm-action-btn-item"
+              onClick={handleToggleSatellite}
+              disabled={isSatelliteLoading}
+            >
+              <div className={`gm-action-circle ${showSatellite ? 'active' : ''}`}>
+                <Satellite size={18} />
+              </div>
+              <span>Satellite</span>
+            </button>
+          )}
+
+          <button 
+            type="button"
+            className="gm-action-btn-item"
+            onClick={handleDownloadReport}
+          >
+            <div className="gm-action-circle">
+              <FileDown size={18} />
+            </div>
+            <span>Export</span>
+          </button>
+
+          <button 
+            type="button"
+            className="gm-action-btn-item"
+            onClick={handleRecenter}
+          >
+            <div className="gm-action-circle">
+              <Crosshair size={18} />
+            </div>
+            <span>Center</span>
+          </button>
+        </div>
+
+        {/* Progress Bar (if active) */}
+        {actionProgress && (
+          <div className="gm-progress-box">
+            <div className="gm-progress-header">
+              <span>{actionProgress.title}</span>
+              <span style={{ color: 'var(--gm-primary-blue)' }}>{actionProgress.percent}%</span>
+            </div>
+            <div className="gm-progress-bar-bg">
+              <div className="gm-progress-bar-fill" style={{ width: `${actionProgress.percent}%` }}></div>
+            </div>
+            <div className="gm-progress-status-text">
+              {actionProgress.status}
+            </div>
+          </div>
+        )}
+
+        {/* Dynamic World Legend if active */}
+        {activeLayer === 'DynamicWorld' && (
+          <div style={{ padding: '10px 18px', background: 'var(--gm-surface-hover)', borderBottom: '1px solid var(--gm-divider)', fontSize: '12px' }}>
+            <strong>Land Cover Mask (10m Resolution)</strong>
+            <div style={{ display: 'flex', gap: '16px', marginTop: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '10px', height: '10px', background: '#00FF88', borderRadius: '2px', display: 'inline-block' }}></span>
+                <span><strong>Vegetation</strong></span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '10px', height: '10px', background: '#FF0000', borderRadius: '2px', display: 'inline-block' }}></span>
+                <span><strong>Built Area</strong></span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Drawer Body Content */}
+        <div className="gm-drawer-content">
+          {/* AI 30-Day Predictive Outlook Card */}
+          {forecast && (
+            <div className="gm-section-card">
+              <div className="gm-section-title">
+                <Sparkles size={16} color="var(--gm-primary-blue)" />
+                <span>{t.forecast_title}</span>
+              </div>
+              <p style={{ fontSize: '13px', color: 'var(--gm-text-secondary)' }}>
+                Target: <strong>{forecast.city || activeZone}</strong>
+              </p>
+              
+              <div className="gm-quote-box">
+                "{forecast.meaning}"
+              </div>
+
+              <div className="gm-advice-box">
+                <strong>Expert Advice:</strong> {forecast.expert_advice}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid var(--gm-divider)', fontSize: '13px' }}>
+                <span>NDVI Predicted: <strong>{forecast.forecast_30_days.toFixed(2)}</strong></span>
+                <span style={{ color: forecast.trend.includes('+') ? '#1e8e3e' : '#d93025', fontWeight: 'bold' }}>
+                  {forecast.trend}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* 30-Day Trend Chart */}
+          {panelInfo.chart && panelInfo.chart.length > 0 && (
+            <div className="gm-section-card">
+              <div className="gm-section-title">
+                <TrendingUp size={16} color="var(--gm-primary-blue)" />
+                <span>Diagnostic NDVI Progression</span>
+              </div>
+              <div style={{ height: '140px', width: '100%', marginTop: '6px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={panelInfo.chart}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--gm-border)" opacity={0.5} />
+                    <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--gm-text-tertiary)' }} />
+                    <YAxis domain={[0, 1]} tick={{ fontSize: 11, fill: 'var(--gm-text-tertiary)' }} />
+                    <Tooltip />
+                    <Line 
+                      type="monotone" 
+                      dataKey="ndvi" 
+                      stroke={getStatusColor(healthStatus)} 
+                      strokeWidth={3} 
+                      dot={{ r: 4, fill: getStatusColor(healthStatus) }} 
+                      activeDot={{ r: 6 }} 
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {/* Prescriptions & Agronomic Routines */}
           {activeZone !== "Cavite Province" && (
             <>
-              {showAdvanced && (
-                <div className="feature-box">
-                  <h3>{t.spectral_title}</h3>
-                  <div className="spectral-grid">
-                    <div className="spectral-item">
-                      NDVI: <strong>{forecast?.current_ndvi !== undefined ? forecast.current_ndvi.toFixed(2) : '--'}</strong>
-                      <p style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>General vegetation health & greenness.</p>
-                    </div>
-                    <div className="spectral-item">
-                      EVI: <strong>{forecast?.evi !== undefined ? forecast.evi.toFixed(2) : '--'}</strong>
-                      <p style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Atmospheric correction for dense canopy.</p>
-                    </div>
-                    <div className="spectral-item">
-                      NDWI: <strong>{forecast?.ndwi !== undefined ? forecast.ndwi.toFixed(2) : '--'}</strong>
-                      <p style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Surface water and soil moisture levels.</p>
-                    </div>
-                    <div className="spectral-item">
-                      LSWI: <strong>{forecast?.lswi !== undefined ? forecast.lswi.toFixed(2) : '--'}</strong>
-                      <p style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Water content inside plant leaves.</p>
-                    </div>
-                    <div className="spectral-item">
-                      NDRE: <strong>{forecast?.ndre !== undefined ? forecast.ndre.toFixed(2) : '--'}</strong>
-                      <p style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Hidden, early-stage stress detection.</p>
-                    </div>
-                  </div>
-                  <div style={{ marginTop: '10px', fontSize: '0.75rem', borderTop: '1px solid #eee', paddingTop: '8px', color: '#555' }}>
-                    <p><strong>Baseline Comparison:</strong> Current image vs. {forecast?.historical_years ?? 0}-year same-season historical mean ({forecast?.current_ndvi != null && forecast?.historical_mean != null ? (forecast.current_ndvi - forecast.historical_mean).toFixed(2) : '--'} deviation).</p>
-                    <p><strong>Cloud Interference:</strong> {forecast?.cloud_cover != null ? forecast.cloud_cover.toFixed(1) : '--'}% residual noise handled by QA60 bitmask.</p>
-                    <p><strong>Processing Node:</strong> {forecast ? 'GEE-Satellite Cluster-Live' : 'GEE-Satellite Cluster-04'}</p>
-                  </div>
+              <div className="gm-section-card">
+                <div className="gm-section-title">
+                  <Activity size={16} color="var(--gm-green)" />
+                  <span>{t.routines}</span>
                 </div>
-              )}
-
-              <div className="feature-box">
-                <h3>{t.routines}</h3>
-                <p><em style={{ color: getStatusColor(healthStatus), fontWeight: 'bold' }}>{healthStatus}</em></p>
-                <p>{panelInfo.routines.desc}</p>
-                <ul style={{ paddingLeft: '20px' }}>
-                  {panelInfo.routines.bullets.map((b: string, i: number) => <li key={i}>{b}</li>)}
-                </ul>
-              </div>
-              
-              <div className="feature-box">
-                <h3>{t.inputs}</h3>
-                <p>{panelInfo.inputs.desc}</p>
-                <ul style={{ paddingLeft: '20px' }}>
-                  {panelInfo.inputs.bullets.map((b: string, i: number) => <li key={i}>{b}</li>)}
+                <p style={{ fontSize: '13px', color: 'var(--gm-text-secondary)' }}>
+                  {panelInfo.routines.desc}
+                </p>
+                <ul className="gm-bullet-list">
+                  {panelInfo.routines.bullets.map((b: string, i: number) => (
+                    <li key={i} className="gm-bullet-item">
+                      <span className="gm-bullet-dot"></span>
+                      <span>{b}</span>
+                    </li>
+                  ))}
                 </ul>
               </div>
 
-              <div className="feature-box">
-                <h3>{t.avoid}</h3>
-                <p>{panelInfo.avoid}</p>
+              <div className="gm-section-card">
+                <div className="gm-section-title">
+                  <CheckCircle2 size={16} color="var(--gm-primary-blue)" />
+                  <span>{t.inputs}</span>
+                </div>
+                <p style={{ fontSize: '13px', color: 'var(--gm-text-secondary)' }}>
+                  {panelInfo.inputs.desc}
+                </p>
+                <ul className="gm-bullet-list">
+                  {panelInfo.inputs.bullets.map((b: string, i: number) => (
+                    <li key={i} className="gm-bullet-item">
+                      <span className="gm-bullet-dot" style={{ backgroundColor: 'var(--gm-green)' }}></span>
+                      <span>{b}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
 
-              {showAdvanced && (
-                <div className="feature-box">
-                  <h3>Diagnostic Trend</h3>
-                  <div style={{ height: '150px', width: '100%' }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={panelInfo.chart}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="day" hide />
-                        <YAxis hide domain={[0, 1]} />
-                        <Tooltip />
-                        <Line type="monotone" dataKey="ndvi" stroke={getStatusColor(healthStatus)} strokeWidth={3} dot={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div style={{ marginTop: '15px', fontSize: '0.8rem', borderTop: '1px dashed #ccc', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '2px', color: '#2D3748' }}>NDVI Reference Scale (Vegetation Vigor):</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4A5568' }}>
-                      <div style={{ width: '10px', height: '10px', backgroundColor: '#00FF88', borderRadius: '50%', flexShrink: 0 }}></div>
-                      <span style={{ width: '65px', fontWeight: 'bold' }}>0.7 to 1.0</span> 
-                      <span>Dense Canopy / Peak Vigor (No Stress)</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4A5568' }}>
-                      <div style={{ width: '10px', height: '10px', backgroundColor: '#ADFF2F', borderRadius: '50%', flexShrink: 0 }}></div>
-                      <span style={{ width: '65px', fontWeight: 'bold' }}>0.5 to 0.7</span> 
-                      <span>Moderate Canopy (Healthy/Developing)</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4A5568' }}>
-                      <div style={{ width: '10px', height: '10px', backgroundColor: '#FFFF00', borderRadius: '50%', flexShrink: 0 }}></div>
-                      <span style={{ width: '65px', fontWeight: 'bold' }}>0.3 to 0.5</span> 
-                      <span>Sparse Cover / Early Stage (Mild Stress)</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4A5568' }}>
-                      <div style={{ width: '10px', height: '10px', backgroundColor: '#FF8800', borderRadius: '50%', flexShrink: 0 }}></div>
-                      <span style={{ width: '65px', fontWeight: 'bold' }}>0.1 to 0.3</span> 
-                      <span>Bare Soil / Senescence (Moderate Stress)</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4A5568' }}>
-                      <div style={{ width: '10px', height: '10px', backgroundColor: '#FF0000', borderRadius: '50%', flexShrink: 0 }}></div>
-                      <span style={{ width: '65px', fontWeight: 'bold' }}>&lt; 0.1</span> 
-                      <span>Barren / Water / Urban (Severe Stress)</span>
-                    </div>
-                  </div>
+              <div className="gm-section-card">
+                <div className="gm-section-title">
+                  <AlertTriangle size={16} color="#d93025" />
+                  <span>{t.avoid}</span>
                 </div>
-              )}
-
-              <button 
-                onClick={handleDownloadReport}
-                className="btn-primary"
-                style={{ width: '100%', marginTop: 'auto' }}
-              >
-                {t.download_report}
-              </button>
+                <p style={{ fontSize: '13px', color: 'var(--gm-text-secondary)' }}>
+                  {panelInfo.avoid}
+                </p>
+              </div>
             </>
           )}
-        </nav>
 
-        <main className="main-section">
-          <>
-            <div ref={mapElement} className="map-container"></div>
-            <div className="active-zone-tag">ZONE: {activeZone}</div>
-          </>
-        </main>
+          {/* Advanced Technical Details */}
+          {showAdvanced && (
+            <div className="gm-section-card">
+              <div className="gm-section-title">
+                <Info size={16} color="var(--gm-primary-blue)" />
+                <span>{t.spectral_title}</span>
+              </div>
+              <div className="gm-spectral-grid">
+                <div className="gm-spectral-chip">
+                  <span className="gm-spectral-name">NDVI</span>
+                  <span className="gm-spectral-val">{forecast?.current_ndvi !== undefined ? forecast.current_ndvi.toFixed(2) : '--'}</span>
+                  <span className="gm-spectral-desc">Vegetation vigor</span>
+                </div>
+                <div className="gm-spectral-chip">
+                  <span className="gm-spectral-name">EVI</span>
+                  <span className="gm-spectral-val">{forecast?.evi !== undefined ? forecast.evi.toFixed(2) : '--'}</span>
+                  <span className="gm-spectral-desc">Canopy index</span>
+                </div>
+                <div className="gm-spectral-chip">
+                  <span className="gm-spectral-name">NDWI</span>
+                  <span className="gm-spectral-val">{forecast?.ndwi !== undefined ? forecast.ndwi.toFixed(2) : '--'}</span>
+                  <span className="gm-spectral-desc">Moisture level</span>
+                </div>
+                <div className="gm-spectral-chip">
+                  <span className="gm-spectral-name">LSWI</span>
+                  <span className="gm-spectral-val">{forecast?.lswi !== undefined ? forecast.lswi.toFixed(2) : '--'}</span>
+                  <span className="gm-spectral-desc">Leaf water content</span>
+                </div>
+                <div className="gm-spectral-chip">
+                  <span className="gm-spectral-name">NDRE</span>
+                  <span className="gm-spectral-val">{forecast?.ndre !== undefined ? forecast.ndre.toFixed(2) : '--'}</span>
+                  <span className="gm-spectral-desc">Red Edge early stress</span>
+                </div>
+              </div>
+
+              {forecast && (
+                <div style={{ marginTop: '10px', fontSize: '12px', borderTop: '1px solid var(--gm-divider)', paddingTop: '8px', color: 'var(--gm-text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <p>CNN Softmax Prob: <strong>{forecast.softmax_prob != null ? (forecast.softmax_prob * 100).toFixed(1) + '%' : '--'}</strong></p>
+                  {forecast.landcover && (
+                    <p>CNN Land Cover: <strong>{forecast.landcover.label}</strong> ({(forecast.landcover.vegetated_probability * 100).toFixed(1)}% veg)</p>
+                  )}
+                  {forecast.rainfall_mm != null && (
+                    <p>CHIRPS Rainfall (30d): <strong>{forecast.rainfall_mm.toFixed(1)} mm</strong></p>
+                  )}
+                  {forecast.opa_alert_probability != null && (
+                    <p>OPA Alert: <strong>{(forecast.opa_alert_probability * 100).toFixed(0)}%</strong> (score {forecast.opa_alert_score})</p>
+                  )}
+                  {forecast.model_used && <p>Model: <strong>{forecast.model_used}</strong></p>}
+                </div>
+              )}
+
+              <ValidationEvidence />
+            </div>
+          )}
+
+          {/* Download Report Button at bottom of card */}
+          <button 
+            type="button"
+            onClick={handleDownloadReport}
+            className="gm-chip"
+            style={{ 
+              width: '100%', 
+              justifyContent: 'center', 
+              background: 'var(--gm-primary-blue)', 
+              color: '#ffffff', 
+              borderColor: 'var(--gm-primary-blue)',
+              padding: '10px',
+              marginTop: '4px'
+            }}
+          >
+            <FileDown size={16} />
+            <span>{t.download_report}</span>
+          </button>
+        </div>
+      </aside>
+    )}
+  </div>
+
+
+
+      {/* 7. Bottom-Right Floating Controls (Google Maps Signature Stack) */}
+      <div className="gm-bottom-right-controls">
+        {/* Layer Selector */}
+        <button 
+          type="button" 
+          className={`gm-layer-box ${showSatellite ? 'active' : ''}`}
+          onClick={() => {
+            if (activeZone === "Cavite Province") {
+              handleCitySelectChange("Silang");
+            } else {
+              handleToggleSatellite();
+            }
+          }}
+          title={showSatellite ? "Switch to Map View" : "Switch to Satellite Imagery"}
+          aria-label="Toggle map layer"
+        >
+          <Layers size={20} />
+          <span style={{ fontSize: '9px', fontWeight: 600, marginTop: '2px' }}>
+            {showSatellite ? 'Sat' : 'Map'}
+          </span>
+        </button>
+
+        {/* Recenter Button */}
+        <button 
+          type="button" 
+          className="gm-recenter-btn"
+          onClick={handleRecenter}
+          title="Recenter view on Cavite"
+          aria-label="Recenter map"
+        >
+          <Crosshair size={20} />
+        </button>
+
+        {/* Stacked Zoom Controls (+ / -) */}
+        <div className="gm-zoom-group">
+          <button 
+            type="button" 
+            className="gm-zoom-btn"
+            onClick={handleZoomIn}
+            title="Zoom in"
+            aria-label="Zoom in"
+          >
+            <Plus size={18} />
+          </button>
+          <div className="gm-zoom-divider"></div>
+          <button 
+            type="button" 
+            className="gm-zoom-btn"
+            onClick={handleZoomOut}
+            title="Zoom out"
+            aria-label="Zoom out"
+          >
+            <Minus size={18} />
+          </button>
+        </div>
       </div>
     </div>
   );

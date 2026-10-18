@@ -1,197 +1,834 @@
-/* Basic reset and functional layout only */
-* { box-sizing: border-box; margin: 0; padding: 0; }
+/* Google Maps UI Design System for Cavite Agri-Watch */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Google+Sans:wght@400;500;700&display=swap');
+
+:root {
+  --gm-font: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+  --gm-bg: #ffffff;
+  --gm-surface: #ffffff;
+  --gm-surface-hover: #f1f3f4;
+  --gm-text-primary: #202124;
+  --gm-text-secondary: #5f6368;
+  --gm-text-tertiary: #70757a;
+  --gm-border: #dadce0;
+  --gm-divider: #e8eaed;
+  --gm-primary-blue: #1a73e8;
+  --gm-primary-blue-hover: #1557b0;
+  --gm-primary-blue-light: #e8f0fe;
+  --gm-green: #1e8e3e;
+  --gm-green-light: #e6f4ea;
+  --gm-shadow-1: 0 1px 2px rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+  --gm-shadow-2: 0 2px 6px rgba(60,64,67,0.3), 0 1px 2px rgba(60,64,67,0.15);
+  --gm-shadow-3: 0 4px 16px rgba(60,64,67,0.25);
+  --gm-radius-sm: 4px;
+  --gm-radius-md: 8px;
+  --gm-radius-lg: 16px;
+  --gm-radius-full: 9999px;
+}
+
+body.dark {
+  --gm-bg: #121212;
+  --gm-surface: #1e2430;
+  --gm-surface-hover: #2a3344;
+  --gm-text-primary: #f8fafc;
+  --gm-text-secondary: #94a3b8;
+  --gm-text-tertiary: #64748b;
+  --gm-border: #334155;
+  --gm-divider: #1e293b;
+  --gm-primary-blue: #38bdf8;
+  --gm-primary-blue-hover: #0284c7;
+  --gm-primary-blue-light: rgba(56, 189, 248, 0.15);
+  --gm-green: #4ade80;
+  --gm-green-light: rgba(74, 222, 128, 0.15);
+  --gm-shadow-1: 0 1px 3px rgba(0,0,0,0.5);
+  --gm-shadow-2: 0 4px 10px rgba(0,0,0,0.6);
+  --gm-shadow-3: 0 8px 24px rgba(0,0,0,0.7);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 body {
-  font-family: sans-serif;
-  background-color: #fff;
-  color: #000;
-  padding: 10px;
+  font-family: var(--gm-font);
+  background-color: var(--gm-bg);
+  color: var(--gm-text-primary);
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+/* Full-bleed Map Viewport */
+.app-container {
+  position: relative;
+  width: 100vw;
   height: 100vh;
   overflow: hidden;
 }
 
-.app-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  gap: 16px;
-}
-
-.top-header {
-  border-bottom: 2px solid #000;
-  padding-bottom: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.main-layout {
-  display: flex;
-  gap: 16px;
-  height: calc(100vh - 100px);
-}
-
-.sidebar {
-  width: 360px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  overflow-y: auto;
-}
-
-.feature-box {
-  border: 1px solid #000;
-  padding: 15px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.feature-box h3 {
-  font-size: 1.1rem;
-  border-bottom: 1px solid #ccc;
-  margin-bottom: 5px;
-}
-
-.feature-box ul {
-  list-style-type: disc;
-  margin-top: 5px;
-}
-
-.feature-box li {
-  font-size: 0.9rem;
-  margin-bottom: 4px;
-}
-
-button {
-  padding: 8px 12px;
-  cursor: pointer;
-  border: 1px solid #000;
-  background: #f0f0f0;
-  color: #000000;
-}
-
-button:hover {
-  background: #e0e0e0;
-}
-
-.btn-primary {
-  background-color: #ddd;
-  font-weight: bold;
-}
-
-.controls-container {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border: none;
-  padding: 0;
-}
-
-.forecast-btn {
+.map-container {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  padding: 12px 16px;
-  background-color: #2D3748;
-  color: #ffffff;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Hide default OpenLayers zoom in favor of Google Maps controls */
+.ol-zoom {
+  display: none !important;
+}
+
+/* 1. TOP-LEFT: Google Maps Floating Omnibox / Search Box & Container */
+.gm-search-wrapper {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 410px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.gm-search-card,
+.gm-dropdown-menu,
+.gm-chips-container,
+.gm-place-drawer {
+  pointer-events: auto;
+}
+
+.gm-search-card {
+  height: 48px;
+  flex-shrink: 0;
+  background: var(--gm-surface);
+  border-radius: var(--gm-radius-md);
+  box-shadow: var(--gm-shadow-2);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 8px;
+  position: relative;
+  transition: box-shadow 0.2s ease, background-color 0.2s ease;
+  border: 1px solid transparent;
+}
+
+body.dark .gm-search-card {
+  border-color: var(--gm-border);
+}
+
+.gm-search-card:focus-within {
+  box-shadow: var(--gm-shadow-3);
+  border-color: var(--gm-primary-blue);
+}
+
+.gm-search-icon-btn {
+  background: none;
   border: none;
-  border-radius: 6px;
-  font-weight: bold;
-  font-size: 0.95rem;
+  color: var(--gm-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  border-radius: 50%;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.forecast-btn:hover:not(:disabled) {
-  background-color: #1A202C;
+.gm-search-icon-btn:hover {
+  background: var(--gm-surface-hover);
+  color: var(--gm-primary-blue);
 }
 
-.forecast-btn:disabled {
-  opacity: 0.7;
+.gm-search-input-container {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.gm-search-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--gm-font);
+  font-size: 15px;
+  color: var(--gm-text-primary);
+}
+
+.gm-search-input::placeholder {
+  color: var(--gm-text-tertiary);
+}
+
+.gm-search-divider {
+  width: 1px;
+  height: 24px;
+  background-color: var(--gm-border);
+  margin: 0 4px;
+}
+
+/* Autocomplete Dropdown List */
+.gm-dropdown-menu {
+  position: absolute;
+  top: 54px;
+  left: 0;
+  width: 100%;
+  background: var(--gm-surface);
+  border-radius: var(--gm-radius-md);
+  box-shadow: var(--gm-shadow-3);
+  max-height: 290px;
+  overflow-y: auto;
+  z-index: 30;
+  border: 1px solid var(--gm-border);
+  padding: 6px 0;
+  animation: gmFadeDown 0.15s ease-out;
+}
+
+@keyframes gmFadeDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.gm-dropdown-item {
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--gm-text-primary);
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.gm-dropdown-item:hover,
+.gm-dropdown-item.active {
+  background-color: var(--gm-surface-hover);
+  color: var(--gm-primary-blue);
+  font-weight: 500;
+}
+
+.gm-dropdown-item-sub {
+  font-size: 12px;
+  color: var(--gm-text-tertiary);
+  margin-left: auto;
+}
+
+/* Category Action Chips (Right below the Search Bar - Wraps onto next line if not fitting) */
+.gm-chips-container {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 2px 0 4px 0;
+  flex-shrink: 0;
+}
+
+.gm-chip {
+  background: var(--gm-surface);
+  color: var(--gm-text-primary);
+  border: 1px solid var(--gm-border);
+  border-radius: var(--gm-radius-full);
+  padding: 6px 12px;
+  font-family: var(--gm-font);
+  font-size: 12.5px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: var(--gm-shadow-1);
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.gm-chip:hover:not(:disabled) {
+  background: var(--gm-surface-hover);
+  box-shadow: var(--gm-shadow-2);
+}
+
+.gm-chip.active {
+  background: var(--gm-primary-blue-light);
+  border-color: var(--gm-primary-blue);
+  color: var(--gm-primary-blue);
+  font-weight: 600;
+}
+
+.gm-chip:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
-.main-section {
-  flex: 1;
-  border: 1px solid #000;
-  position: relative;
-  overflow: hidden;
+.gm-chip-icon-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: inherit;
 }
 
-.map-container {
+/* 2. LEFT: Google Maps Floating Place Card / Drawer (Flows directly underneath chips) */
+.gm-place-drawer {
   width: 100%;
-  height: 100%;
-}
-
-.sync-status {
-  background: #eee;
-  padding: 10px;
-  border: 1px solid #999;
-}
-
-.active-zone-tag {
-  position: absolute;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: white;
-  border: 2px solid #000;
-  padding: 5px 15px;
-  font-weight: bold;
-  z-index: 10;
-}
-
-/* Lab Mode specific styling (kept simple) */
-.lab-content {
-  padding: 20px;
-  height: 100%;
-  overflow-y: auto;
-  background: #fff;
-}
-
-.lab-grid {
-  display: flex;
-  gap: 20px;
-  margin-top: 20px;
-}
-
-.lab-box {
   flex: 1;
-  border: 1px solid #000;
-  padding: 10px;
+  min-height: 0;
+  max-height: calc(100vh - 160px);
+  background: var(--gm-surface);
+  border-radius: var(--gm-radius-md);
+  box-shadow: var(--gm-shadow-3);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--gm-border);
+  animation: gmFadeDown 0.2s ease-out;
 }
 
-.spectral-grid {
+.gm-place-drawer.collapsed {
+  display: none;
+}
+
+/* Place Drawer Hero / Header */
+.gm-place-header {
+  padding: 16px 20px 14px 20px;
+  border-bottom: 1px solid var(--gm-divider);
+  position: relative;
+}
+
+.gm-place-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.gm-place-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--gm-text-primary);
+  line-height: 1.25;
+}
+
+.gm-place-subtitle {
+  font-size: 13px;
+  color: var(--gm-text-secondary);
+  margin-top: 3px;
+}
+
+.gm-place-close-btn {
+  background: none;
+  border: none;
+  color: var(--gm-text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease;
+}
+
+.gm-place-close-btn:hover {
+  background: var(--gm-surface-hover);
+  color: var(--gm-text-primary);
+}
+
+/* Rating / Status badge in Google Maps style */
+.gm-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--gm-radius-full);
+  margin-top: 10px;
+  background: var(--gm-surface-hover);
+  border: 1px solid var(--gm-border);
+}
+
+.gm-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Circular Google Maps Action Buttons Row */
+.gm-action-buttons-row {
+  display: flex;
+  justify-content: space-around;
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--gm-divider);
+  background: var(--gm-surface);
+}
+
+.gm-action-btn-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--gm-primary-blue);
+  font-family: var(--gm-font);
+  font-size: 11px;
+  font-weight: 500;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.gm-action-btn-item:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.gm-action-btn-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.gm-action-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--gm-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gm-surface);
+  box-shadow: var(--gm-shadow-1);
+  color: var(--gm-primary-blue);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.gm-action-btn-item:hover:not(:disabled) .gm-action-circle {
+  background: var(--gm-primary-blue-light);
+  border-color: var(--gm-primary-blue);
+}
+
+.gm-action-circle.active {
+  background: var(--gm-primary-blue);
+  color: #ffffff;
+  border-color: var(--gm-primary-blue);
+}
+
+/* Process Progress Indicator */
+.gm-progress-box {
+  padding: 12px 18px;
+  background: var(--gm-primary-blue-light);
+  border-bottom: 1px solid var(--gm-border);
+  animation: gmFadeDown 0.2s ease;
+}
+
+.gm-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gm-text-primary);
+  margin-bottom: 6px;
+}
+
+.gm-progress-bar-bg {
+  width: 100%;
+  height: 5px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: var(--gm-radius-full);
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+body.dark .gm-progress-bar-bg {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.gm-progress-bar-fill {
+  height: 100%;
+  background: var(--gm-primary-blue);
+  transition: width 0.3s ease;
+  border-radius: var(--gm-radius-full);
+}
+
+.gm-progress-status-text {
+  font-size: 11px;
+  color: var(--gm-text-secondary);
+}
+
+/* Drawer Content Sections */
+.gm-drawer-content {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.gm-section-card {
+  background: var(--gm-surface);
+  border-radius: var(--gm-radius-md);
+  border: 1px solid var(--gm-border);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gm-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gm-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gm-quote-box {
+  border-left: 3px solid var(--gm-green);
+  padding: 8px 12px;
+  background: var(--gm-surface-hover);
+  border-radius: 0 var(--gm-radius-sm) var(--gm-radius-sm) 0;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--gm-text-secondary);
+  line-height: 1.4;
+}
+
+.gm-advice-box {
+  font-size: 12.5px;
+  color: var(--gm-text-secondary);
+  line-height: 1.45;
+}
+
+/* Routines / Bullet Lists */
+.gm-bullet-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gm-bullet-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--gm-text-secondary);
+  line-height: 1.4;
+}
+
+.gm-bullet-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gm-primary-blue);
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+/* Spectral Metrics Grid */
+.gm-spectral-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.gm-spectral-chip {
+  background: var(--gm-surface-hover);
+  border: 1px solid var(--gm-border);
+  border-radius: var(--gm-radius-sm);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gm-spectral-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gm-text-tertiary);
+  text-transform: uppercase;
+}
+
+.gm-spectral-val {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--gm-primary-blue);
+}
+
+.gm-spectral-desc {
+  font-size: 10px;
+  color: var(--gm-text-tertiary);
+  line-height: 1.2;
+}
+
+/* Toggle Drawer Expand / Collapse Tab Button (Like Google Maps side tab) */
+.gm-drawer-toggle-tab {
+  position: absolute;
+  top: 16px;
+  left: 434px;
+  width: 24px;
+  height: 48px;
+  background: var(--gm-surface);
+  border-radius: 0 var(--gm-radius-md) var(--gm-radius-md) 0;
+  box-shadow: var(--gm-shadow-2);
+  border: 1px solid var(--gm-border);
+  border-left: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 26;
+  color: var(--gm-text-secondary);
+  transition: background-color 0.15s ease;
+}
+
+.gm-drawer-toggle-tab.collapsed {
+  left: 434px;
+}
+
+.gm-drawer-toggle-tab:hover {
+  background: var(--gm-surface-hover);
+  color: var(--gm-text-primary);
+}
+
+/* 3. TOP-RIGHT: Google Maps Floating Utility Bar */
+.gm-utility-bar {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gm-utility-pill {
+  height: 42px;
+  background: var(--gm-surface);
+  border-radius: var(--gm-radius-full);
+  box-shadow: var(--gm-shadow-2);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
   gap: 12px;
-  margin-top: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--gm-text-secondary);
+  border: 1px solid var(--gm-border);
 }
 
-.spectral-item {
-  border: 1px solid #eee;
+.gm-status-dot-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gm-green);
+  box-shadow: 0 0 0 rgba(30, 142, 62, 0.4);
+  animation: pulse 1.8s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(30, 142, 62, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(30, 142, 62, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(30, 142, 62, 0);
+  }
+}
+
+.gm-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--gm-surface);
+  border: 1px solid var(--gm-border);
+  box-shadow: var(--gm-shadow-2);
+  color: var(--gm-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.gm-icon-btn:hover {
+  background: var(--gm-surface-hover);
+  color: var(--gm-text-primary);
+  box-shadow: var(--gm-shadow-3);
+}
+
+.gm-lang-toggle {
+  background: var(--gm-surface-hover);
+  border-radius: var(--gm-radius-full);
+  display: flex;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--gm-border);
+}
+
+.gm-lang-btn {
+  background: none;
+  border: none;
   padding: 4px 8px;
-  background: #fafafa;
+  border-radius: var(--gm-radius-full);
+  font-family: var(--gm-font);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--gm-text-secondary);
+  transition: all 0.15s ease;
 }
 
-.forecast-meta {
-  margin-top: 10px;
-  border-top: 1px dashed #ccc;
-  padding-top: 8px;
+.gm-lang-btn.active {
+  background: var(--gm-primary-blue);
+  color: #ffffff;
 }
-body.dark { background-color: #1a202c; color: #e2e8f0; }
-body.dark .feature-box, body.dark .top-header, body.dark .main-section, body.dark .lab-box { border-color: #4a5568; }
-body.dark button { background: #2d3748; color: #e2e8f0; border-color: #4a5568; }
-body.dark button:hover { background: #4a5568; }
-body.dark .btn-primary { background-color: #4a5568; }
-body.dark select { background-color: #2d3748 !important; color: #e2e8f0 !important; border-color: #4a5568 !important; }
-body.dark .active-zone-tag { background: #1a202c; color: #e2e8f0; border-color: #4a5568; }
-body.dark .spectral-item, body.dark .sync-status { background: #2d3748; border-color: #4a5568; }
-body.dark h3 { border-bottom-color: #4a5568; }
 
-/* Custom borderless scrollbar */
+/* 4. BOTTOM-RIGHT: Google Maps Floating Control Stack */
+.gm-bottom-right-controls {
+  position: absolute;
+  bottom: 24px;
+  right: 16px;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+/* Layer Button (Map vs Satellite) */
+.gm-layer-box {
+  width: 44px;
+  height: 44px;
+  background: var(--gm-surface);
+  border-radius: var(--gm-radius-md);
+  box-shadow: var(--gm-shadow-2);
+  border: 1px solid var(--gm-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--gm-text-secondary);
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.gm-layer-box:hover {
+  background: var(--gm-surface-hover);
+  color: var(--gm-primary-blue);
+  box-shadow: var(--gm-shadow-3);
+}
+
+.gm-layer-box.active {
+  border-color: var(--gm-primary-blue);
+  color: var(--gm-primary-blue);
+  background: var(--gm-primary-blue-light);
+}
+
+/* Stacked Zoom Controls (+ / -) */
+.gm-zoom-group {
+  background: var(--gm-surface);
+  border-radius: var(--gm-radius-md);
+  box-shadow: var(--gm-shadow-2);
+  border: 1px solid var(--gm-border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.gm-zoom-btn {
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--gm-text-secondary);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.gm-zoom-btn:hover {
+  background: var(--gm-surface-hover);
+  color: var(--gm-text-primary);
+}
+
+.gm-zoom-divider {
+  width: 80%;
+  height: 1px;
+  background-color: var(--gm-border);
+  margin: 0 auto;
+}
+
+/* Recenter Button */
+.gm-recenter-btn {
+  width: 40px;
+  height: 40px;
+  background: var(--gm-surface);
+  border-radius: var(--gm-radius-md);
+  box-shadow: var(--gm-shadow-2);
+  border: 1px solid var(--gm-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--gm-text-secondary);
+  transition: all 0.15s ease;
+}
+
+.gm-recenter-btn:hover {
+  background: var(--gm-surface-hover);
+  color: var(--gm-primary-blue);
+  box-shadow: var(--gm-shadow-3);
+}
+
+/* 5. TOP-CENTER: Floating Province/Zone Pill */
+.gm-top-center-pill {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--gm-surface);
+  border-radius: var(--gm-radius-full);
+  box-shadow: var(--gm-shadow-2);
+  border: 1px solid var(--gm-border);
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gm-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 20;
+  pointer-events: none;
+}
+
+/* Custom Borderless Scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
+  scrollbar-color: var(--gm-border) transparent;
 }
 
 ::-webkit-scrollbar {
@@ -201,32 +838,38 @@ body.dark h3 { border-bottom-color: #4a5568; }
 
 ::-webkit-scrollbar-track {
   background: transparent;
-  border: none;
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #cbd5e1;
+  background-color: var(--gm-border);
   border-radius: 9999px;
-  border: none;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #94a3b8;
+  background-color: var(--gm-text-tertiary);
 }
 
-::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
-/* Dark mode scrollbar */
-body.dark * {
-  scrollbar-color: #4a5568 transparent;
-}
-
-body.dark ::-webkit-scrollbar-thumb {
-  background-color: #4a5568;
-}
-
-body.dark ::-webkit-scrollbar-thumb:hover {
-  background-color: #718096;
+/* Responsive Rules */
+@media (max-width: 768px) {
+  .gm-search-wrapper {
+    top: 10px;
+    left: 10px;
+    width: calc(100vw - 20px);
+  }
+  .gm-place-drawer {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 55vh;
+    border-radius: 16px 16px 0 0;
+  }
+  .gm-utility-bar {
+    top: 110px;
+    right: 10px;
+  }
+  .gm-top-center-pill {
+    display: none;
+  }
 }
