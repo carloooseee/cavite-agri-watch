@@ -296,6 +296,7 @@ const App: React.FC = () => {
 
         setActionProgress({ title: 'AI Analysis & Land Cover', status: 'Rendering Vegetation & Built Area mask...', percent: 75 });
 
+        const builtColor = theme === 'dark' ? '#334155' : '#94A3B8';
         const dwRes = await fetch('http://127.0.0.1:8000/map/dynamic-world/zone', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -303,6 +304,8 @@ const App: React.FC = () => {
             geometry: clickedGeometry,
             status: statusVal,
             city_name: activeZone,
+            theme: theme,
+            built_color: builtColor,
           }),
         }).then(r => r.ok ? r.json() : null);
 
@@ -1595,8 +1598,16 @@ const App: React.FC = () => {
                 <span><strong>Vegetation (Gradient: Light to Dark Vigor)</strong></span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '12px', height: '10px', background: '#64748B', borderRadius: '2px', display: 'inline-block' }}></span>
-                <span><strong>Built Area (Greyed Out)</strong></span>
+                <span 
+                  style={{ 
+                    width: '12px', 
+                    height: '10px', 
+                    background: theme === 'dark' ? '#334155' : '#94A3B8', 
+                    borderRadius: '2px', 
+                    display: 'inline-block' 
+                  }} 
+                />
+                <span><strong>Built Area (Region Base)</strong></span>
               </div>
             </div>
           </div>

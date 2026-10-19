@@ -195,7 +195,7 @@ VEG_PALETTES = {
     'warning': ['#FEF08A', '#FACC15', '#CA8A04', '#713F12'],      # Pale yellow -> Golden amber -> Darker ochre -> Deep bronze
     'stressed': ['#FCA5A5', '#EF4444', '#B91C1C', '#450A0A'],     # Soft coral -> Crimson -> Deep burgundy -> Dark mahogany
 }
-BUILT_AREA_COLOR = '#64748B'  # Refined slate-grey for greyed-out built/infrastructure areas
+BUILT_AREA_COLOR = '#94A3B8'  # Matches the color of other regions when not selected (#94A3B8 light / #334155 dark)
 
 def get_veg_palette(status: str) -> list:
     s = (status or "").lower()
@@ -250,7 +250,7 @@ def get_cavite_dynamic_world():
 
         # Continuous gradient for vegetation: lower vigor is lighter, denser vigor is darker
         veg_viz = ndvi.visualize(min=0.25, max=0.80, palette=veg_palette)
-        # Built / non-vegetated areas are greyed out
+        # Built / non-vegetated areas match the unselected region color
         built_viz = ee.Image.constant(1).visualize(palette=[BUILT_AREA_COLOR])
 
         final_img = built_viz.where(is_veg, veg_viz).clip(cavite)
@@ -264,7 +264,7 @@ def get_cavite_dynamic_world():
 async def get_zone_dynamic_world_polygon(request: Request):
     """
     Clips 10m LULC & NDVI composite to the exact municipality geometry.
-    - Built / Non-Vegetation areas are greyed out (#64748B).
+    - Built / Non-Vegetation areas match the color of other unselected regions (#94A3B8 light / #334155 dark).
     - Vegetation areas are rendered as a continuous gradient (light to darker density/vigor)
       matching the forecast results (Healthy, Warning, or Stressed).
     """
@@ -273,9 +273,12 @@ async def get_zone_dynamic_world_polygon(request: Request):
         if isinstance(body, dict) and 'geometry' in body:
             zone_geom = ee.Geometry(body['geometry'])
             status = str(body.get('status') or body.get('classification') or '')
+            is_dark = (body.get('theme') == 'dark')
+            built_color = body.get('built_color') or ('#334155' if is_dark else '#94A3B8')
         else:
             zone_geom = ee.Geometry(body)
             status = ''
+            built_color = BUILT_AREA_COLOR
 
         now = datetime.now()
         start = (now - timedelta(days=180)).strftime('%Y-%m-%d')
@@ -330,8 +333,8 @@ async def get_zone_dynamic_world_polygon(request: Request):
         # Continuous gradient for vegetation: lighter on sparse areas, darker on dense lush areas
         veg_viz = ndvi.visualize(min=0.25, max=0.80, palette=veg_palette)
 
-        # Greyed-out built/urban area
-        built_viz = ee.Image.constant(1).visualize(palette=[BUILT_AREA_COLOR])
+        # Built / non-vegetation area: styled like the other regions when not selected
+        built_viz = ee.Image.constant(1).visualize(palette=[built_color])
 
         # Composite and clip to exact municipality geometry
         final_img = built_viz.where(is_veg, veg_viz).clip(zone_geom)
