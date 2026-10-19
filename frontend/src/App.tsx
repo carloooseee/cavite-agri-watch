@@ -532,14 +532,14 @@ const App: React.FC = () => {
     // Bounding box covering the Philippines archipelago to allow panning and viewing the entire country
     const phExtent = transformExtent([114.0, 4.0, 130.0, 22.0], 'EPSG:4326', 'EPSG:3857');
 
-    // Greyed out, unselectable styling for the rest of the Philippines
+    // Greyed out, unselectable styling for the rest of the Philippines (solid land over blue water)
     const phLightStyle = new Style({
-      fill: new Fill({ color: 'rgba(215, 220, 228, 0.45)' }),
-      stroke: new Stroke({ color: 'rgba(148, 163, 184, 0.65)', width: 1 }),
+      fill: new Fill({ color: '#dde3ea' }),
+      stroke: new Stroke({ color: '#cbd5e1', width: 1 }),
     });
     const phDarkStyle = new Style({
-      fill: new Fill({ color: 'rgba(30, 41, 59, 0.45)' }),
-      stroke: new Stroke({ color: 'rgba(100, 116, 139, 0.55)', width: 1 }),
+      fill: new Fill({ color: '#1e293b' }),
+      stroke: new Stroke({ color: '#334155', width: 1 }),
     });
     const phStyleFunction = () => {
       return document.body.classList.contains('dark') ? phDarkStyle : phLightStyle;
@@ -569,13 +569,13 @@ const App: React.FC = () => {
       let cached = styleCache.get(cacheKey);
       if (!cached) {
         cached = new Style({
-          // Noticeably richer, elevated slate fill compared to the faint 0.45 unavailable background
+          // Solid, richer slate fill standing out distinctly against unavailable grey land
           fill: new Fill({
-            color: isDark ? 'rgba(51, 65, 85, 0.78)' : 'rgba(148, 163, 184, 0.70)',
+            color: isDark ? '#334155' : '#94a3b8',
           }),
           // Sharp, high-contrast border stroke defining each active municipality
           stroke: new Stroke({
-            color: isDark ? '#94A3B8' : '#334155',
+            color: isDark ? '#94a3b8' : '#334155',
             width: 1.8,
           }),
           text: new Text({

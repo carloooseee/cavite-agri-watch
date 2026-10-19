@@ -16,6 +16,7 @@
   --gm-primary-blue-light: #e8f0fe;
   --gm-green: #1e8e3e;
   --gm-green-light: #e6f4ea;
+  --gm-water: #a5c9eb;
   --gm-shadow-1: 0 1px 2px rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
   --gm-shadow-2: 0 2px 6px rgba(60,64,67,0.3), 0 1px 2px rgba(60,64,67,0.15);
   --gm-shadow-3: 0 4px 16px rgba(60,64,67,0.25);
@@ -39,6 +40,7 @@ body.dark {
   --gm-primary-blue-light: rgba(56, 189, 248, 0.15);
   --gm-green: #4ade80;
   --gm-green-light: rgba(74, 222, 128, 0.15);
+  --gm-water: #0b1320;
   --gm-shadow-1: 0 1px 3px rgba(0,0,0,0.5);
   --gm-shadow-2: 0 4px 10px rgba(0,0,0,0.6);
   --gm-shadow-3: 0 8px 24px rgba(0,0,0,0.7);
@@ -75,6 +77,8 @@ body {
   width: 100%;
   height: 100%;
   z-index: 1;
+  background-color: var(--gm-water);
+  transition: background-color 0.3s ease;
 }
 
 /* Hide default OpenLayers zoom in favor of Google Maps controls */
