@@ -290,28 +290,29 @@ const App: React.FC = () => {
           setShowSatellite(false);
         }
 
-        const [predictionRes, dwRes] = await Promise.allSettled([
-          AgriApi.getZonePrediction(clickedGeometry as Record<string, unknown>, activeZone),
-          fetch('http://127.0.0.1:8000/map/dynamic-world/zone', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(clickedGeometry),
-          }).then(r => r.ok ? r.json() : null)
-        ]);
+        const prediction = await AgriApi.getZonePrediction(clickedGeometry as Record<string, unknown>, activeZone);
+        data = prediction;
+        const statusVal = data?.health_status || data?.classification || data?.status;
 
-        setActionProgress({ title: 'AI Analysis & Land Cover', status: 'Rendering Vegetation & Built Area mask...', percent: 80 });
+        setActionProgress({ title: 'AI Analysis & Land Cover', status: 'Rendering Vegetation & Built Area mask...', percent: 75 });
 
-        if (predictionRes.status === 'fulfilled') {
-          data = predictionRes.value;
-        }
+        const dwRes = await fetch('http://127.0.0.1:8000/map/dynamic-world/zone', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            geometry: clickedGeometry,
+            status: statusVal,
+            city_name: activeZone,
+          }),
+        }).then(r => r.ok ? r.json() : null);
 
-        if (dwRes.status === 'fulfilled' && dwRes.value?.url_template && mapRef.current) {
+        if (dwRes?.url_template && mapRef.current) {
           const layer = new TileLayer({
             source: new XYZ({ 
-              url: dwRes.value.url_template,
+              url: dwRes.url_template,
               crossOrigin: 'anonymous' 
             }),
-            opacity: 0.85,
+            opacity: 0.88,
             zIndex: 25,
           });
           mapRef.current.addLayer(layer);
@@ -1575,15 +1576,27 @@ const App: React.FC = () => {
         {/* Dynamic World Legend if active */}
         {activeLayer === 'DynamicWorld' && (
           <div style={{ padding: '10px 18px', background: 'var(--gm-surface-hover)', borderBottom: '1px solid var(--gm-divider)', fontSize: '12px' }}>
-            <strong>Land Cover Mask (10m Resolution)</strong>
-            <div style={{ display: 'flex', gap: '16px', marginTop: '6px' }}>
+            <strong>Land Cover & Crop Vigor (10m Resolution)</strong>
+            <div style={{ display: 'flex', gap: '16px', marginTop: '6px', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '10px', height: '10px', background: '#00FF88', borderRadius: '2px', display: 'inline-block' }}></span>
-                <span><strong>Vegetation</strong></span>
+                <span 
+                  style={{ 
+                    width: '32px', 
+                    height: '10px', 
+                    borderRadius: '2px', 
+                    display: 'inline-block',
+                    background: healthStatus.includes('Damaged') || healthStatus.includes('Stressed')
+                      ? 'linear-gradient(to right, #FCA5A5, #EF4444, #450A0A)'
+                      : healthStatus.includes('Moderate') || healthStatus.includes('Warning')
+                        ? 'linear-gradient(to right, #FEF08A, #FACC15, #CA8A04, #713F12)'
+                        : 'linear-gradient(to right, #86EFAC, #22C55E, #16A34A, #14532D)',
+                  }} 
+                />
+                <span><strong>Vegetation (Gradient: Light to Dark Vigor)</strong></span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '10px', height: '10px', background: '#FF0000', borderRadius: '2px', display: 'inline-block' }}></span>
-                <span><strong>Built Area</strong></span>
+                <span style={{ width: '12px', height: '10px', background: '#64748B', borderRadius: '2px', display: 'inline-block' }}></span>
+                <span><strong>Built Area (Greyed Out)</strong></span>
               </div>
             </div>
           </div>

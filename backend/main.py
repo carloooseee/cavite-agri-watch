@@ -189,23 +189,26 @@ async def get_zone_satellite_polygon(request: Request):
         return {"url_template": map_info['tile_fetcher'].url_format}
     except Exception as e:
         return {"error": str(e)}
-# Dynamic World 10m Land Cover palette: Vegetation = Green, Non-Vegetation = Red
-DW_PALETTE = [
-    '#FF0000',  # 0: Water (Non-Vegetation -> Red)
-    '#00FF88',  # 1: Trees (Vegetation -> Neon Green)
-    '#00FF88',  # 2: Grass (Vegetation -> Neon Green)
-    '#00FF88',  # 3: Flooded Vegetation (Vegetation -> Neon Green)
-    '#00FF88',  # 4: Crops (Vegetation -> Neon Green)
-    '#00FF88',  # 5: Shrub & Scrub (Vegetation -> Neon Green)
-    '#FF0000',  # 6: Built Area / Buildings & Roads (Non-Vegetation -> Red)
-    '#FF0000',  # 7: Bare Land (Non-Vegetation -> Red)
-    '#FF0000'   # 8: Snow & Ice (Non-Vegetation -> Red)
-]
+# Vegetation color gradients based on forecast results (soft/lighter to rich/darker density):
+VEG_PALETTES = {
+    'healthy': ['#86EFAC', '#22C55E', '#16A34A', '#14532D'],      # Soft mint -> Vibrant green -> Forest green -> Deep pine
+    'warning': ['#FEF08A', '#FACC15', '#CA8A04', '#713F12'],      # Pale yellow -> Golden amber -> Darker ochre -> Deep bronze
+    'stressed': ['#FCA5A5', '#EF4444', '#B91C1C', '#450A0A'],     # Soft coral -> Crimson -> Deep burgundy -> Dark mahogany
+}
+BUILT_AREA_COLOR = '#64748B'  # Refined slate-grey for greyed-out built/infrastructure areas
+
+def get_veg_palette(status: str) -> list:
+    s = (status or "").lower()
+    if 'warn' in s or 'moderat' in s or 'alert' in s:
+        return VEG_PALETTES['warning']
+    elif 'stress' in s or 'damag' in s or 'danger' in s:
+        return VEG_PALETTES['stressed']
+    return VEG_PALETTES['healthy']
 
 
 @app.get("/map/dynamic-world")
 def get_cavite_dynamic_world():
-    """Returns a tile URL for the Dynamic World LULC layer across Cavite."""
+    """Returns a tile URL for the Dynamic World LULC layer across Cavite with greyed-out built areas and gradient vegetation."""
     try:
         countries = ee.FeatureCollection("FAO/GAUL/2015/level2")
         cavite = countries.filter(ee.Filter.eq('ADM2_NAME', 'Cavite'))
@@ -215,8 +218,7 @@ def get_cavite_dynamic_world():
         end = now.strftime('%Y-%m-%d')
 
         # 1. Base Dynamic World Mask
-        # Use the pre-computed categorical 'label' band with mosaic for max speed and no gaps
-        label = (
+        dw = (
             ee.ImageCollection('GOOGLE/DYNAMICWORLD/V1')
             .filterBounds(cavite)
             .filterDate(start, end)
@@ -242,44 +244,45 @@ def get_cavite_dynamic_world():
         )
         ndvi = s2_composite.normalizedDifference(['B8', 'B4']).rename('ndvi')
 
-        # Combine: 
-        # If NDVI is VERY high (> 0.5), force it to be Vegetation (Class 1).
-        # If NDVI is low/moderate (< 0.25), force it to be Non-Vegetation (Class 6: Built/Red) to reveal more roads.
-        # Everything else remains the Dynamic World AI's original classification.
-        # Fill in missing Dynamic World patches (due to cloud cover inside DW itself) with Vegetation (1)
-        label = label.unmask(1)
-        # Unmask the ndvi conditions so that cloud-masked pixels fall back to the original Dynamic World label
-        # rather than being erased completely from the final map.
-        label = label.where(ndvi.gt(0.5).unmask(0), 1)
-        label = label.where(ndvi.lt(0.25).unmask(0), 6)
-        
-        label = label.clip(cavite)
+        # Cavite province baseline: healthy gradient
+        veg_palette = VEG_PALETTES['healthy']
+        is_veg = ndvi.gt(0.50).Or(dw.gte(1).And(dw.lte(5)).And(ndvi.gte(0.25)))
 
-        viz_params = {
-            'min': 0,
-            'max': 8,
-            'palette': DW_PALETTE,
-            'opacity': 0.8
-        }
+        # Continuous gradient for vegetation: lower vigor is lighter, denser vigor is darker
+        veg_viz = ndvi.visualize(min=0.25, max=0.80, palette=veg_palette)
+        # Built / non-vegetated areas are greyed out
+        built_viz = ee.Image.constant(1).visualize(palette=[BUILT_AREA_COLOR])
 
-        map_info = label.getMapId(viz_params)
+        final_img = built_viz.where(is_veg, veg_viz).clip(cavite)
+
+        map_info = final_img.getMapId({'opacity': 0.88})
         return {"url_template": map_info['tile_fetcher'].url_format}
     except Exception as e:
         return {"error": str(e)}
 
 @app.post("/map/dynamic-world/zone")
 async def get_zone_dynamic_world_polygon(request: Request):
-    """Clips Dynamic World LULC composite to the exact municipality geometry."""
+    """
+    Clips 10m LULC & NDVI composite to the exact municipality geometry.
+    - Built / Non-Vegetation areas are greyed out (#64748B).
+    - Vegetation areas are rendered as a continuous gradient (light to darker density/vigor)
+      matching the forecast results (Healthy, Warning, or Stressed).
+    """
     try:
         body = await request.json()
-        zone_geom = ee.Geometry(body)
+        if isinstance(body, dict) and 'geometry' in body:
+            zone_geom = ee.Geometry(body['geometry'])
+            status = str(body.get('status') or body.get('classification') or '')
+        else:
+            zone_geom = ee.Geometry(body)
+            status = ''
 
         now = datetime.now()
         start = (now - timedelta(days=180)).strftime('%Y-%m-%d')
         end = now.strftime('%Y-%m-%d')
 
         # 1. Base Dynamic World Mask
-        label = (
+        dw = (
             ee.ImageCollection('GOOGLE/DYNAMICWORLD/V1')
             .filterBounds(zone_geom)
             .filterDate(start, end)
@@ -305,27 +308,35 @@ async def get_zone_dynamic_world_polygon(request: Request):
         )
         ndvi = s2_composite.normalizedDifference(['B8', 'B4']).rename('ndvi')
 
-        # Combine: 
-        # If NDVI is VERY high (> 0.5), force it to be Vegetation (Class 1).
-        # If NDVI is low/moderate (< 0.25), force it to be Non-Vegetation (Class 6: Built/Red) to reveal more roads.
-        # Everything else remains the Dynamic World AI's original classification.
-        # Fill in missing Dynamic World patches (due to cloud cover inside DW itself) with Vegetation (1)
-        label = label.unmask(1)
-        # Unmask the ndvi conditions so that cloud-masked pixels fall back to the original Dynamic World label
-        # rather than being erased completely from the final map.
-        label = label.where(ndvi.gt(0.5).unmask(0), 1)
-        label = label.where(ndvi.lt(0.25).unmask(0), 6)
-        
-        label = label.clip(zone_geom)
+        # If status was not provided in request, infer from zone mean NDVI
+        if not status:
+            try:
+                mean_val = ndvi.reduceRegion(ee.Reducer.mean(), zone_geom, scale=60, bestEffort=True).getInfo().get('ndvi')
+                if mean_val is not None:
+                    if mean_val < 0.38:
+                        status = 'stressed'
+                    elif mean_val < 0.52:
+                        status = 'warning'
+                    else:
+                        status = 'healthy'
+            except Exception:
+                status = 'healthy'
 
-        viz_params = {
-            'min': 0,
-            'max': 8,
-            'palette': DW_PALETTE,
-            'opacity': 0.85
-        }
+        veg_palette = get_veg_palette(status)
 
-        map_info = label.getMapId(viz_params)
+        # Vegetation condition: high NDVI or classified as DW vegetation with moderate NDVI
+        is_veg = ndvi.gt(0.50).Or(dw.gte(1).And(dw.lte(5)).And(ndvi.gte(0.25)))
+
+        # Continuous gradient for vegetation: lighter on sparse areas, darker on dense lush areas
+        veg_viz = ndvi.visualize(min=0.25, max=0.80, palette=veg_palette)
+
+        # Greyed-out built/urban area
+        built_viz = ee.Image.constant(1).visualize(palette=[BUILT_AREA_COLOR])
+
+        # Composite and clip to exact municipality geometry
+        final_img = built_viz.where(is_veg, veg_viz).clip(zone_geom)
+
+        map_info = final_img.getMapId({'opacity': 0.88})
         return {"url_template": map_info['tile_fetcher'].url_format}
     except Exception as e:
         return {"error": str(e)}
