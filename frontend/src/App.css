@@ -565,6 +565,37 @@ body.dark .gm-progress-bar-bg {
   flex-shrink: 0;
 }
 
+/* Text Button for Technical Details (Past Design Style) */
+.gm-details-text-btn {
+  background: none;
+  border: none;
+  color: var(--gm-primary-blue);
+  cursor: pointer;
+  font-family: var(--gm-font);
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--gm-radius-full);
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.gm-details-text-btn:hover {
+  background: var(--gm-primary-blue-light);
+  text-decoration: underline;
+}
+
+.gm-details-chevron {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.gm-details-chevron.open {
+  transform: rotate(180deg);
+}
+
 /* Spectral Metrics Grid */
 .gm-spectral-grid {
   display: grid;

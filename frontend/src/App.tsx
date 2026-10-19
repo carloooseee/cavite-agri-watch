@@ -42,6 +42,7 @@ import {
   AlertTriangle,
   Menu,
   ChevronRight,
+  ChevronDown,
   LocateFixed,
   Loader2
 } from 'lucide-react';
@@ -1398,7 +1399,7 @@ const App: React.FC = () => {
             onClick={() => setShowAdvanced(!showAdvanced)}
           >
             <Info size={15} color="#fbbc04" />
-            <span>{showAdvanced ? (lang === 'EN' ? 'Hide Details' : 'Itago ang Detalye') : (lang === 'EN' ? 'Spectral Details' : 'Spectral Detalye')}</span>
+            <span>{showAdvanced ? (lang === 'EN' ? 'Hide Details' : 'Itago ang Detalye') : (lang === 'EN' ? 'Show Details' : 'Ipakita ang Detalye')}</span>
           </button>
         </div>
 
@@ -1518,16 +1519,6 @@ const App: React.FC = () => {
             </button>
           )}
 
-          <button 
-            type="button"
-            className="gm-action-btn-item"
-            onClick={() => setShowAdvanced(!showAdvanced)}
-          >
-            <div className={`gm-action-circle ${showAdvanced ? 'active' : ''}`}>
-              <Info size={18} />
-            </div>
-            <span>{showAdvanced ? (lang === 'EN' ? 'Hide Info' : 'Itago') : (lang === 'EN' ? 'Details' : 'Detalye')}</span>
-          </button>
 
           <button 
             type="button"
@@ -1607,38 +1598,12 @@ const App: React.FC = () => {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid var(--gm-divider)', fontSize: '13px' }}>
-                <span>NDVI Predicted: <strong>{forecast.forecast_30_days.toFixed(2)}</strong></span>
+                <span style={{ color: 'var(--gm-text-secondary)' }}>
+                  {lang === 'EN' ? '30-Day Expected Trend:' : 'Inaasahang Takbo (30-Araw):'}
+                </span>
                 <span style={{ color: forecast.trend.includes('+') ? '#1e8e3e' : '#d93025', fontWeight: 'bold' }}>
                   {forecast.trend}
                 </span>
-              </div>
-            </div>
-          )}
-
-          {/* 30-Day Trend Chart */}
-          {panelInfo.chart && panelInfo.chart.length > 0 && (
-            <div className="gm-section-card">
-              <div className="gm-section-title">
-                <TrendingUp size={16} color="var(--gm-primary-blue)" />
-                <span>Diagnostic NDVI Progression</span>
-              </div>
-              <div style={{ height: '140px', width: '100%', marginTop: '6px' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={panelInfo.chart}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--gm-border)" opacity={0.5} />
-                    <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--gm-text-tertiary)' }} />
-                    <YAxis domain={[0, 1]} tick={{ fontSize: 11, fill: 'var(--gm-text-tertiary)' }} />
-                    <Tooltip />
-                    <Line 
-                      type="monotone" 
-                      dataKey="ndvi" 
-                      stroke={getStatusColor(healthStatus)} 
-                      strokeWidth={3} 
-                      dot={{ r: 4, fill: getStatusColor(healthStatus) }} 
-                      activeDot={{ r: 6 }} 
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
               </div>
             </div>
           )}
@@ -1694,59 +1659,110 @@ const App: React.FC = () => {
             </>
           )}
 
+          {/* Text Toggle for Technical Details */}
+          <div style={{ display: 'flex', justifyContent: 'center', margin: '4px 0 10px 0' }}>
+            <button 
+              type="button"
+              className="gm-details-text-btn"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+            >
+              <Info size={15} />
+              <span>{showAdvanced ? (lang === 'EN' ? 'Hide Details' : 'Itago ang Detalye') : (lang === 'EN' ? 'Show Details' : 'Ipakita ang Detalye')}</span>
+              <ChevronDown size={15} className={`gm-details-chevron ${showAdvanced ? 'open' : ''}`} />
+            </button>
+          </div>
+
           {/* Advanced Technical Details */}
           {showAdvanced && (
-            <div className="gm-section-card">
-              <div className="gm-section-title">
-                <Info size={16} color="var(--gm-primary-blue)" />
-                <span>{t.spectral_title}</span>
-              </div>
-              <div className="gm-spectral-grid">
-                <div className="gm-spectral-chip">
-                  <span className="gm-spectral-name">NDVI</span>
-                  <span className="gm-spectral-val">{forecast?.current_ndvi !== undefined ? forecast.current_ndvi.toFixed(2) : '--'}</span>
-                  <span className="gm-spectral-desc">Vegetation vigor</span>
+            <>
+              <div className="gm-section-card">
+                <div className="gm-section-title">
+                  <Info size={16} color="var(--gm-primary-blue)" />
+                  <span>{t.spectral_title}</span>
                 </div>
-                <div className="gm-spectral-chip">
-                  <span className="gm-spectral-name">EVI</span>
-                  <span className="gm-spectral-val">{forecast?.evi !== undefined ? forecast.evi.toFixed(2) : '--'}</span>
-                  <span className="gm-spectral-desc">Canopy index</span>
+
+                {forecast && (
+                  <div style={{ padding: '8px 12px', background: 'var(--gm-surface-hover)', borderRadius: 'var(--gm-radius-sm)', marginBottom: '12px', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: 'var(--gm-text-secondary)' }}>{lang === 'EN' ? 'NDVI Predicted (30-day):' : 'Tinatayang NDVI (30-araw):'}</span>
+                    <strong style={{ fontSize: '14px', color: 'var(--gm-primary-blue)' }}>{forecast.forecast_30_days.toFixed(2)}</strong>
+                  </div>
+                )}
+
+                <div className="gm-spectral-grid">
+                  <div className="gm-spectral-chip">
+                    <span className="gm-spectral-name">NDVI</span>
+                    <span className="gm-spectral-val">{forecast?.current_ndvi !== undefined ? forecast.current_ndvi.toFixed(2) : '--'}</span>
+                    <span className="gm-spectral-desc">Vegetation vigor</span>
+                  </div>
+                  <div className="gm-spectral-chip">
+                    <span className="gm-spectral-name">EVI</span>
+                    <span className="gm-spectral-val">{forecast?.evi !== undefined ? forecast.evi.toFixed(2) : '--'}</span>
+                    <span className="gm-spectral-desc">Canopy index</span>
+                  </div>
+                  <div className="gm-spectral-chip">
+                    <span className="gm-spectral-name">NDWI</span>
+                    <span className="gm-spectral-val">{forecast?.ndwi !== undefined ? forecast.ndwi.toFixed(2) : '--'}</span>
+                    <span className="gm-spectral-desc">Moisture level</span>
+                  </div>
+                  <div className="gm-spectral-chip">
+                    <span className="gm-spectral-name">LSWI</span>
+                    <span className="gm-spectral-val">{forecast?.lswi !== undefined ? forecast.lswi.toFixed(2) : '--'}</span>
+                    <span className="gm-spectral-desc">Leaf water content</span>
+                  </div>
+                  <div className="gm-spectral-chip">
+                    <span className="gm-spectral-name">NDRE</span>
+                    <span className="gm-spectral-val">{forecast?.ndre !== undefined ? forecast.ndre.toFixed(2) : '--'}</span>
+                    <span className="gm-spectral-desc">Red Edge early stress</span>
+                  </div>
                 </div>
-                <div className="gm-spectral-chip">
-                  <span className="gm-spectral-name">NDWI</span>
-                  <span className="gm-spectral-val">{forecast?.ndwi !== undefined ? forecast.ndwi.toFixed(2) : '--'}</span>
-                  <span className="gm-spectral-desc">Moisture level</span>
-                </div>
-                <div className="gm-spectral-chip">
-                  <span className="gm-spectral-name">LSWI</span>
-                  <span className="gm-spectral-val">{forecast?.lswi !== undefined ? forecast.lswi.toFixed(2) : '--'}</span>
-                  <span className="gm-spectral-desc">Leaf water content</span>
-                </div>
-                <div className="gm-spectral-chip">
-                  <span className="gm-spectral-name">NDRE</span>
-                  <span className="gm-spectral-val">{forecast?.ndre !== undefined ? forecast.ndre.toFixed(2) : '--'}</span>
-                  <span className="gm-spectral-desc">Red Edge early stress</span>
-                </div>
+
+                {forecast && (
+                  <div style={{ marginTop: '10px', fontSize: '12px', borderTop: '1px solid var(--gm-divider)', paddingTop: '8px', color: 'var(--gm-text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <p>CNN Softmax Prob: <strong>{forecast.softmax_prob != null ? (forecast.softmax_prob * 100).toFixed(1) + '%' : '--'}</strong></p>
+                    {forecast.landcover && (
+                      <p>CNN Land Cover: <strong>{forecast.landcover.label}</strong> ({(forecast.landcover.vegetated_probability * 100).toFixed(1)}% veg)</p>
+                    )}
+                    {forecast.rainfall_mm != null && (
+                      <p>CHIRPS Rainfall (30d): <strong>{forecast.rainfall_mm.toFixed(1)} mm</strong></p>
+                    )}
+                    {forecast.opa_alert_probability != null && (
+                      <p>OPA Alert: <strong>{(forecast.opa_alert_probability * 100).toFixed(0)}%</strong> (score {forecast.opa_alert_score})</p>
+                    )}
+                    {forecast.model_used && <p>Model: <strong>{forecast.model_used}</strong></p>}
+                  </div>
+                )}
               </div>
 
-              {forecast && (
-                <div style={{ marginTop: '10px', fontSize: '12px', borderTop: '1px solid var(--gm-divider)', paddingTop: '8px', color: 'var(--gm-text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <p>CNN Softmax Prob: <strong>{forecast.softmax_prob != null ? (forecast.softmax_prob * 100).toFixed(1) + '%' : '--'}</strong></p>
-                  {forecast.landcover && (
-                    <p>CNN Land Cover: <strong>{forecast.landcover.label}</strong> ({(forecast.landcover.vegetated_probability * 100).toFixed(1)}% veg)</p>
-                  )}
-                  {forecast.rainfall_mm != null && (
-                    <p>CHIRPS Rainfall (30d): <strong>{forecast.rainfall_mm.toFixed(1)} mm</strong></p>
-                  )}
-                  {forecast.opa_alert_probability != null && (
-                    <p>OPA Alert: <strong>{(forecast.opa_alert_probability * 100).toFixed(0)}%</strong> (score {forecast.opa_alert_score})</p>
-                  )}
-                  {forecast.model_used && <p>Model: <strong>{forecast.model_used}</strong></p>}
+              {/* 30-Day Trend Chart */}
+              {panelInfo.chart && panelInfo.chart.length > 0 && (
+                <div className="gm-section-card">
+                  <div className="gm-section-title">
+                    <TrendingUp size={16} color="var(--gm-primary-blue)" />
+                    <span>Diagnostic NDVI Progression</span>
+                  </div>
+                  <div style={{ height: '140px', width: '100%', marginTop: '6px' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={panelInfo.chart}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--gm-border)" opacity={0.5} />
+                        <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--gm-text-tertiary)' }} />
+                        <YAxis domain={[0, 1]} tick={{ fontSize: 11, fill: 'var(--gm-text-tertiary)' }} />
+                        <Tooltip />
+                        <Line 
+                          type="monotone" 
+                          dataKey="ndvi" 
+                          stroke={getStatusColor(healthStatus)} 
+                          strokeWidth={3} 
+                          dot={{ r: 4, fill: getStatusColor(healthStatus) }} 
+                          activeDot={{ r: 6 }} 
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               )}
 
               <ValidationEvidence />
-            </div>
+            </>
           )}
 
           {/* Download Report Button at bottom of card */}
