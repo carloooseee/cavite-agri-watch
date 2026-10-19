@@ -195,7 +195,7 @@ VEG_PALETTES = {
     'warning': ['#FEF08A', '#FACC15', '#CA8A04', '#713F12'],      # Pale yellow -> Golden amber -> Darker ochre -> Deep bronze
     'stressed': ['#FCA5A5', '#EF4444', '#B91C1C', '#450A0A'],     # Soft coral -> Crimson -> Deep burgundy -> Dark mahogany
 }
-BUILT_AREA_COLOR = '#94A3B8'  # Matches the color of other regions when not selected (#94A3B8 light / #334155 dark)
+BUILT_AREA_COLOR = '#111827'  # Deep dark / black for clear contrast separating built area from vegetation
 
 def get_veg_palette(status: str) -> list:
     s = (status or "").lower()
@@ -264,7 +264,7 @@ def get_cavite_dynamic_world():
 async def get_zone_dynamic_world_polygon(request: Request):
     """
     Clips 10m LULC & NDVI composite to the exact municipality geometry.
-    - Built / Non-Vegetation areas match the color of other unselected regions (#94A3B8 light / #334155 dark).
+    - Built / Non-Vegetation areas are rendered in deep dark charcoal/black (#111827) for clear distinction.
     - Vegetation areas are rendered as a continuous gradient (light to darker density/vigor)
       matching the forecast results (Healthy, Warning, or Stressed).
     """
@@ -274,7 +274,7 @@ async def get_zone_dynamic_world_polygon(request: Request):
             zone_geom = ee.Geometry(body['geometry'])
             status = str(body.get('status') or body.get('classification') or '')
             is_dark = (body.get('theme') == 'dark')
-            built_color = body.get('built_color') or ('#334155' if is_dark else '#94A3B8')
+            built_color = body.get('built_color') or BUILT_AREA_COLOR
         else:
             zone_geom = ee.Geometry(body)
             status = ''

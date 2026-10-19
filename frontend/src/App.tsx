@@ -296,7 +296,7 @@ const App: React.FC = () => {
 
         setActionProgress({ title: 'AI Analysis & Land Cover', status: 'Rendering Vegetation & Built Area mask...', percent: 75 });
 
-        const builtColor = theme === 'dark' ? '#334155' : '#94A3B8';
+        const builtColor = '#111827'; // Dark / black for clear distinction from colorful vegetation gradient
         const dwRes = await fetch('http://127.0.0.1:8000/map/dynamic-world/zone', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1614,12 +1614,13 @@ const App: React.FC = () => {
                   style={{ 
                     width: '12px', 
                     height: '10px', 
-                    background: theme === 'dark' ? '#334155' : '#94A3B8', 
+                    background: '#111827', 
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
                     borderRadius: '2px', 
                     display: 'inline-block' 
                   }} 
                 />
-                <span><strong>Built Area (Region Base)</strong></span>
+                <span><strong>Built Area (Dark / Urban)</strong></span>
               </div>
             </div>
           </div>
