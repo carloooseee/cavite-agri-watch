@@ -17,6 +17,9 @@ import ValidationEvidence from './components/ValidationEvidence';
 import XYZ from 'ol/source/XYZ';
 import { jsPDF } from "jspdf";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import Feature from 'ol/Feature';
+import Point from 'ol/geom/Point';
+import CircleStyle from 'ol/style/Circle';
 import {
   Search,
   MapPin,
@@ -38,7 +41,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   Menu,
-  ChevronRight
+  ChevronRight,
+  LocateFixed,
+  Loader2
 } from 'lucide-react';
 
 const CITIES = [
@@ -74,6 +79,18 @@ const App: React.FC = () => {
   const philippinesLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cityDataMapRef = useRef<Map<string, { geom: any; geomGeoJson: any }>>(new Map());
+  const locationLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+
+  const [isLocating, setIsLocating] = useState(false);
+  const [deviceCoords, setDeviceCoords] = useState<{ lon: number; lat: number } | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(prev => (prev === msg ? null : prev));
+    }, 4000);
+  };
   
   const [activeLayer, setActiveLayer] = useState<'NDVI' | 'DynamicWorld' | 'SAR' | 'None'>('None');
   const [forecast, setForecast] = useState<ForecastData | null>(null);
@@ -96,7 +113,7 @@ const App: React.FC = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const handleToggleMenu = () => {
-    if (window.innerWidth <= 768) {
+    if (window.innerWidth <= 840) {
       setIsMobileSidebarOpen(prev => !prev);
     } else {
       setIsDrawerOpen(prev => !prev);
@@ -1051,8 +1068,137 @@ const App: React.FC = () => {
     }
   };
 
+  const handleCenterOnDevice = () => {
+    if (!navigator.geolocation) {
+      showToast(lang === 'EN' ? "Geolocation is not supported by your browser." : "Hindi suportado ang geolocation sa browser na ito.");
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setIsLocating(false);
+        const { longitude, latitude } = pos.coords;
+        setDeviceCoords({ lon: longitude, lat: latitude });
+
+        const coords3857 = fromLonLat([longitude, latitude]);
+
+        if (mapRef.current) {
+          // Initialize user location vector layer if not already added
+          if (!locationLayerRef.current) {
+            const locSource = new VectorSource();
+            const locLayer = new VectorLayer({
+              source: locSource,
+              zIndex: 999
+            });
+            mapRef.current.addLayer(locLayer);
+            locationLayerRef.current = locLayer;
+          }
+
+          // Add / update Google Maps style blue location dot with halo
+          const source = locationLayerRef.current.getSource();
+          if (source) {
+            source.clear();
+
+            // Outer soft accuracy halo
+            const haloFeature = new Feature({
+              geometry: new Point(coords3857)
+            });
+            haloFeature.setStyle(
+              new Style({
+                image: new CircleStyle({
+                  radius: 18,
+                  fill: new Fill({ color: 'rgba(26, 115, 232, 0.22)' }),
+                  stroke: new Stroke({ color: 'rgba(26, 115, 232, 0.45)', width: 1.5 })
+                })
+              })
+            );
+
+            // Inner solid blue dot with white border
+            const dotFeature = new Feature({
+              geometry: new Point(coords3857)
+            });
+            dotFeature.setStyle(
+              new Style({
+                image: new CircleStyle({
+                  radius: 7,
+                  fill: new Fill({ color: '#1a73e8' }),
+                  stroke: new Stroke({ color: '#ffffff', width: 2.5 })
+                })
+              })
+            );
+
+            source.addFeatures([haloFeature, dotFeature]);
+          }
+
+          // Animate smoothly to device position
+          mapRef.current.getView().animate({
+            center: coords3857,
+            zoom: Math.max(mapRef.current.getView().getZoom() ?? 10, 14),
+            duration: 850
+          });
+
+          // Check if coordinate is inside any Cavite municipality polygon
+          let matchedCity: string | null = null;
+          cityDataMapRef.current.forEach((data, cityName) => {
+            if (!matchedCity && data.geom && data.geom.intersectsCoordinate(coords3857)) {
+              matchedCity = cityName;
+            }
+          });
+
+          if (matchedCity) {
+            handleCitySelectChange(matchedCity);
+            showToast(lang === 'EN' ? `Located inside ${matchedCity}!` : `Nahanap sa loob ng ${matchedCity}!`);
+          } else {
+            showToast(
+              lang === 'EN'
+                ? "Device location centered (outside Cavite agricultural boundary)"
+                : "Naka-sentro sa device location (sa labas ng Cavite)"
+            );
+          }
+        }
+      },
+      (err) => {
+        setIsLocating(false);
+        console.warn("Device location error:", err);
+        if (err.code === 1) {
+          showToast(
+            lang === 'EN'
+              ? "Location permission denied. Please allow GPS access in your browser."
+              : "Hindi pinahintulutan ang lokasyon. Paki-enable ang GPS sa browser."
+          );
+        } else if (err.code === 2) {
+          showToast(
+            lang === 'EN'
+              ? "Location unavailable. Please check your GPS / network connection."
+              : "Hindi mahanap ang lokasyon. Paki-check ang GPS / koneksyon."
+          );
+        } else {
+          showToast(
+            lang === 'EN'
+              ? "Location request timed out. Please try again."
+              : "Nag-timeout ang request ng lokasyon. Subukan muli."
+          );
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 30000
+      }
+    );
+  };
+
   return (
     <div className="app-container">
+      {/* Floating GPS / Status Toast Notification */}
+      {toastMessage && (
+        <div className="gm-floating-toast">
+          <MapPin size={15} color="var(--gm-primary-blue)" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* 1. Map Canvas (Full screen background) */}
       <div ref={mapElement} className="map-container"></div>
 
@@ -1098,7 +1244,7 @@ const App: React.FC = () => {
       </div>
 
       {/* 4. Top-Left Google Maps Search Box & Action Chips */}
-      <div className="gm-search-wrapper">
+      <div className={`gm-search-wrapper ${isMobileSidebarOpen ? 'mobile-sidebar-active' : ''}`}>
         <div className="gm-search-card">
           <button 
             type="button" 
@@ -1256,9 +1402,17 @@ const App: React.FC = () => {
           </button>
         </div>
 
+        {/* Mobile Sidebar Backdrop (Behind Drawer) */}
+        {isMobileSidebarOpen && (
+          <div 
+            className="gm-sidebar-backdrop"
+            onClick={() => setIsMobileSidebarOpen(false)}
+            aria-label="Close menu backdrop"
+          />
+        )}
+
         {/* 5. Left Floating Place Card / Drawer (Google Maps Drawer / Sidebar) */}
-        {isDrawerOpen && (
-          <aside className={`gm-place-drawer ${isMobileSidebarOpen ? 'mobile-open' : ''}`}>
+        <aside className={`gm-place-drawer ${!isDrawerOpen ? 'desktop-collapsed' : ''} ${isMobileSidebarOpen ? 'mobile-open' : ''}`}>
         {/* Mobile Top Header */}
         <div className="gm-mobile-drawer-header">
           <div className="gm-mobile-drawer-brand">
@@ -1615,7 +1769,6 @@ const App: React.FC = () => {
           </button>
         </div>
       </aside>
-    )}
   </div>
 
       {/* 6. Mobile Floating Stacked Status & Region Card */}
@@ -1648,13 +1801,7 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Mobile Sidebar Backdrop */}
-      {isMobileSidebarOpen && (
-        <div 
-          className="gm-sidebar-backdrop"
-          onClick={() => setIsMobileSidebarOpen(false)}
-        />
-      )}
+
 
 
 
@@ -1680,12 +1827,27 @@ const App: React.FC = () => {
           </span>
         </button>
 
+        {/* Device Location (GPS) Center Button */}
+        <button 
+          type="button" 
+          className={`gm-location-btn ${isLocating ? 'locating' : ''} ${deviceCoords ? 'active' : ''}`}
+          onClick={handleCenterOnDevice}
+          title={lang === 'EN' ? "Center on my device location (GPS)" : "I-sentro sa lokasyon ng device (GPS)"}
+          aria-label="Center on device location"
+        >
+          {isLocating ? (
+            <Loader2 size={19} className="gm-spin-icon" />
+          ) : (
+            <LocateFixed size={19} />
+          )}
+        </button>
+
         {/* Recenter Button */}
         <button 
           type="button" 
           className="gm-recenter-btn"
           onClick={handleRecenter}
-          title="Recenter view on Cavite"
+          title={lang === 'EN' ? "Recenter view on Cavite" : "I-sentro ang view sa Cavite"}
           aria-label="Recenter map"
         >
           <Crosshair size={20} />

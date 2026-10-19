@@ -304,7 +304,8 @@ body.dark .gm-search-card {
   pointer-events: auto;
 }
 
-.gm-place-drawer.collapsed {
+.gm-place-drawer.collapsed,
+.gm-place-drawer.desktop-collapsed {
   display: none;
 }
 
@@ -813,6 +814,72 @@ body.dark .gm-progress-bar-bg {
   box-shadow: var(--gm-shadow-3);
 }
 
+/* Center on Device Location (GPS) Button */
+.gm-location-btn {
+  width: 40px;
+  height: 40px;
+  background: var(--gm-surface);
+  border-radius: var(--gm-radius-md);
+  box-shadow: var(--gm-shadow-2);
+  border: 1px solid var(--gm-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--gm-text-secondary);
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.gm-location-btn:hover {
+  background: var(--gm-surface-hover);
+  color: var(--gm-primary-blue);
+  box-shadow: var(--gm-shadow-3);
+}
+
+.gm-location-btn.active {
+  color: var(--gm-primary-blue);
+  border-color: var(--gm-primary-blue);
+  background: var(--gm-primary-blue-light);
+}
+
+.gm-location-btn.locating {
+  color: var(--gm-primary-blue);
+}
+
+.gm-spin-icon {
+  animation: gmSpin 0.9s linear infinite;
+}
+
+@keyframes gmSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Floating GPS Status Toast */
+.gm-floating-toast {
+  position: absolute;
+  top: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--gm-surface);
+  color: var(--gm-text-primary);
+  border: 1px solid var(--gm-border);
+  box-shadow: var(--gm-shadow-3);
+  border-radius: var(--gm-radius-full);
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 1050;
+  animation: gmFadeDown 0.2s ease-out;
+  pointer-events: none;
+  max-width: calc(100vw - 32px);
+  white-space: nowrap;
+}
+
 /* 5. TOP-CENTER: Floating Province/Zone Pill */
 .gm-top-center-pill {
   position: absolute;
@@ -861,9 +928,44 @@ body.dark .gm-progress-bar-bg {
   display: none;
 }
 
-/* Responsive Rules */
-@media (max-width: 768px) {
-  /* Search Box: centered horizontally and at the top */
+/* ==========================================================================
+   Responsive Rules & Viewport Adaptation
+   ========================================================================== */
+
+/* 1. Large Screens & Laptops: Prevent center pill collision (< 1200px) */
+@media (max-width: 1200px) {
+  .gm-top-center-pill {
+    display: none !important;
+  }
+}
+
+/* 2. Half-Screen (e.g. 960px Windows snap) & Compact Desktop (< 1100px) */
+@media (max-width: 1100px) {
+  .gm-search-wrapper {
+    width: min(390px, 44vw);
+  }
+
+  .gm-utility-pill {
+    padding: 0 10px;
+    gap: 6px;
+  }
+
+  .gm-utility-pill span:not(.gm-status-dot-pulse) {
+    display: none;
+  }
+
+  .gm-utility-pill::after {
+    content: "ONLINE";
+    font-weight: 600;
+    color: var(--gm-text-primary);
+    font-size: 11px;
+    letter-spacing: 0.5px;
+  }
+}
+
+/* 3. Tablets & Mobile Devices (< 840px) */
+@media (max-width: 840px) {
+  /* Search Box: centered horizontally at top */
   .gm-search-wrapper {
     top: 12px;
     left: 12px;
@@ -880,26 +982,32 @@ body.dark .gm-progress-bar-bg {
     pointer-events: none;
   }
 
+  /* When mobile sidebar is active, elevate search wrapper above page elements */
+  .gm-search-wrapper.mobile-sidebar-active {
+    z-index: 1000;
+  }
+
   .gm-search-card {
     height: 48px;
     box-shadow: var(--gm-shadow-2);
+    pointer-events: auto;
   }
 
-  /* Chips are hidden from the map - functions are housed in the hamburger sidebar */
+  /* Chips are hidden on mobile - functions are comfortably housed in the slide-out drawer */
   .gm-chips-container {
     display: none;
   }
 
   /* Hide desktop-only floating elements on mobile */
   .gm-utility-bar {
-    display: none;
+    display: none !important;
   }
 
   .gm-top-center-pill {
-    display: none;
+    display: none !important;
   }
 
-  /* Mobile Stacked Status & Region Card (stacked on screen below the search bar) */
+  /* Mobile Stacked Status & Region Card (below the search bar) */
   .gm-mobile-status-card {
     display: flex;
     position: absolute;
@@ -972,37 +1080,46 @@ body.dark .gm-progress-bar-bg {
     flex-shrink: 0;
   }
 
-  /* Mobile Backdrop (Subtle click catcher, NO blur) */
+  /* Mobile Backdrop (Sits BEHIND drawer at z-index 45) */
   .gm-sidebar-backdrop {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.25);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
     z-index: 45;
+    pointer-events: auto;
+    cursor: pointer;
+    animation: gmFadeIn 0.2s ease-out;
   }
 
-  /* Mobile Sidebar / Drawer (Slide in on left taking 90% of screen) */
+  @keyframes gmFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Mobile Sidebar / Drawer (Sits ABOVE backdrop at z-index 50) */
   .gm-place-drawer {
     position: fixed;
     top: 0;
     left: 0;
     bottom: 0;
-    width: 90%;
-    max-width: 440px;
+    width: 88%;
+    max-width: 420px;
     max-height: 100vh;
     height: 100vh;
     height: 100dvh;
     border-radius: 0 16px 16px 0;
     z-index: 50;
-    box-shadow: 4px 0 28px rgba(0, 0, 0, 0.3);
+    box-shadow: 6px 0 32px rgba(0, 0, 0, 0.35);
     border-right: 1px solid var(--gm-border);
     transform: translateX(-105%);
-    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
     pointer-events: auto;
     overflow-y: auto;
     background: var(--gm-surface);
+    display: flex !important; /* overrides desktop-collapsed */
   }
 
   .gm-place-drawer.mobile-open {
@@ -1047,6 +1164,7 @@ body.dark .gm-progress-bar-bg {
     padding: 6px;
     cursor: pointer;
     border-radius: 50%;
+    transition: background-color 0.15s ease;
   }
 
   .gm-mobile-close-btn:hover {
@@ -1064,8 +1182,16 @@ body.dark .gm-progress-bar-bg {
 
   .gm-layer-box,
   .gm-recenter-btn,
+  .gm-location-btn,
   .gm-zoom-btn {
     width: 44px;
     height: 44px;
   }
+
+  .gm-floating-toast {
+    top: 122px;
+    font-size: 12px;
+    padding: 6px 14px;
+  }
 }
+
