@@ -255,7 +255,7 @@ def get_cavite_dynamic_world():
 
         final_img = built_viz.where(is_veg, veg_viz).clip(cavite)
 
-        map_info = final_img.getMapId({'opacity': 0.88})
+        map_info = final_img.getMapId()
         return {"url_template": map_info['tile_fetcher'].url_format}
     except Exception as e:
         return {"error": str(e)}
@@ -339,7 +339,7 @@ async def get_zone_dynamic_world_polygon(request: Request):
         # Composite and clip to exact municipality geometry
         final_img = built_viz.where(is_veg, veg_viz).clip(zone_geom)
 
-        map_info = final_img.getMapId({'opacity': 0.88})
+        map_info = final_img.getMapId()
         return {"url_template": map_info['tile_fetcher'].url_format}
     except Exception as e:
         return {"error": str(e)}

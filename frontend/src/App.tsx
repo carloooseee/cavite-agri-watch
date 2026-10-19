@@ -80,9 +80,8 @@ const App: React.FC = () => {
   const philippinesLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const caviteLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const caviteSourceRef = useRef<VectorSource | null>(null);
-  const selectionLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
-  const selectSourceRef = useRef<VectorSource | null>(null);
   const selectHighlightRef = useRef<Select | null>(null);
+  const selectedZoneRef = useRef<string>("Cavite Province");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cityDataMapRef = useRef<Map<string, { geom: any; geomGeoJson: any }>>(new Map());
   const locationLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
@@ -130,7 +129,6 @@ const App: React.FC = () => {
     document.body.className = theme;
     philippinesLayerRef.current?.changed();
     caviteLayerRef.current?.changed();
-    selectionLayerRef.current?.changed();
   }, [theme]);
 
   const translations = {
@@ -320,7 +318,6 @@ const App: React.FC = () => {
               url: dwRes.url_template,
               crossOrigin: 'anonymous' 
             }),
-            opacity: 0.88,
             zIndex: 25,
           });
           mapRef.current.addLayer(layer);
@@ -574,28 +571,50 @@ const App: React.FC = () => {
       const cityName = feature.get('name') || '';
       const displayName = feature.get('displayName') || cityName;
       const isDark = document.body.classList.contains('dark');
-      const cacheKey = `${cityName}_${isDark ? 'dark' : 'light'}`;
+      const isSelected = (cityName === selectedZoneRef.current && cityName !== "Cavite Province");
+      const cacheKey = `${cityName}_${isDark ? 'dark' : 'light'}_${isSelected ? 'selected' : 'normal'}`;
 
       let cached = styleCache.get(cacheKey);
       if (!cached) {
-        cached = new Style({
-          // Solid, richer slate fill standing out distinctly against unavailable grey land
-          fill: new Fill({
-            color: isDark ? '#334155' : '#94a3b8',
-          }),
-          // Sharp, high-contrast border stroke defining each active municipality
-          stroke: new Stroke({
-            color: isDark ? '#94a3b8' : '#334155',
-            width: 1.8,
-          }),
-          text: new Text({
-            text: displayName,
-            font: 'bold 14px Helvetica, Arial, sans-serif',
-            fill: new Fill({ color: isDark ? '#F8FAFC' : '#0F172A' }),
-            stroke: new Stroke({ color: isDark ? '#0F172A' : '#FFFFFF', width: 3.5 }),
-            overflow: true,
-          }),
-        });
+        if (isSelected) {
+          // Selected region: made slightly darker to indicate it's been selected
+          cached = new Style({
+            zIndex: 100, // Render boundary and fill on top of adjacent lines
+            fill: new Fill({
+              color: isDark ? '#1E293B' : '#64748B', // Visibly slightly darker slate
+            }),
+            stroke: new Stroke({
+              color: isDark ? '#CBD5E1' : '#0F172A', // Crisp high-contrast border
+              width: 2.2,
+            }),
+            text: new Text({
+              text: displayName,
+              font: 'bold 14px Helvetica, Arial, sans-serif',
+              fill: new Fill({ color: isDark ? '#F8FAFC' : '#FFFFFF' }),
+              stroke: new Stroke({ color: isDark ? '#0F172A' : '#0F172A', width: 3.5 }),
+              overflow: true,
+            }),
+          });
+        } else {
+          // Unselected region: standard slate
+          cached = new Style({
+            zIndex: 10,
+            fill: new Fill({
+              color: isDark ? '#334155' : '#94A3B8',
+            }),
+            stroke: new Stroke({
+              color: isDark ? '#94A3B8' : '#334155',
+              width: 1.8,
+            }),
+            text: new Text({
+              text: displayName,
+              font: 'bold 14px Helvetica, Arial, sans-serif',
+              fill: new Fill({ color: isDark ? '#F8FAFC' : '#0F172A' }),
+              stroke: new Stroke({ color: isDark ? '#0F172A' : '#FFFFFF', width: 3.5 }),
+              overflow: true,
+            }),
+          });
+        }
         styleCache.set(cacheKey, cached);
       }
       return cached;
@@ -609,52 +628,18 @@ const App: React.FC = () => {
     });
     caviteLayerRef.current = caviteLayer;
 
-    // Dedicated high-zIndex selection layer rendered above all vector, raster, and forecast layers
-    const selectSource = new VectorSource();
-    selectSourceRef.current = selectSource;
-
-    const selectedStyleFunction = (feature: any) => {
-      const cityName = feature.get('name') || '';
-      const displayName = feature.get('displayName') || cityName;
-      const isDark = document.body.classList.contains('dark');
-
-      return new Style({
-        fill: new Fill({
-          color: isDark ? 'rgba(0, 255, 136, 0.15)' : 'rgba(0, 255, 136, 0.12)',
-        }),
-        stroke: new Stroke({
-          color: '#00FF88', // Bright high-contrast neon green highlight
-          width: 3.5,
-        }),
-        text: new Text({
-          text: displayName,
-          font: 'bold 14px Helvetica, Arial, sans-serif',
-          fill: new Fill({ color: isDark ? '#F8FAFC' : '#0F172A' }),
-          stroke: new Stroke({ color: isDark ? '#0F172A' : '#FFFFFF', width: 4 }),
-          overflow: true,
-        }),
-      });
-    };
-
-    const selectLayer = new VectorLayer({
-      source: selectSource,
-      zIndex: 40, // Permanently sits above caviteLayer (10), ndviLayer (25), and satelliteLayer (30)
-      properties: { isSelectable: false },
-      style: selectedStyleFunction,
-    });
-    selectionLayerRef.current = selectLayer;
-
     mapRef.current = new OLMap({
       target: mapElement.current,
-      layers: [ philippinesLayer, caviteLayer, selectLayer ],
+      layers: [ philippinesLayer, caviteLayer ],
       view: new View({ center: caviteCenter, zoom: 10, minZoom: 5.5, extent: phExtent }),
     });
 
-    // 3. Selection Highlight Interaction (filtered strictly to caviteLayer)
+    // 3. Selection Interaction (filtered strictly to caviteLayer)
+    // No green highlight — selected municipality is styled directly on caviteLayer as slightly darker
     const selectHighlight = new Select({
       condition: click,
       layers: [ caviteLayer ],
-      style: () => [], // Rendering is handled exclusively by selectLayer at zIndex 40 so outline is never covered
+      style: () => [], // In-place styling via caviteLayer
     });
     selectHighlightRef.current = selectHighlight;
 
@@ -677,10 +662,10 @@ const App: React.FC = () => {
     selectHighlight.on('select', (e) => {
       if (e.selected.length > 0) {
         const feature = e.selected[0];
-        selectSource.clear();
-        selectSource.addFeature(feature);
-
         const cityName = feature.get('name') || "Unknown Area";
+        selectedZoneRef.current = cityName;
+        caviteLayerRef.current?.changed();
+
         setActiveZone(cityName);
         setSearchQuery(cityName);
         setIsDrawerOpen(true);
@@ -725,7 +710,8 @@ const App: React.FC = () => {
           socket.current.send(JSON.stringify({ name: cityName }));
         }
       } else {
-        selectSource.clear();
+        selectedZoneRef.current = "Cavite Province";
+        caviteLayerRef.current?.changed();
       }
     });
 
@@ -780,8 +766,6 @@ const App: React.FC = () => {
       philippinesLayerRef.current = null;
       caviteLayerRef.current = null;
       caviteSourceRef.current = null;
-      selectionLayerRef.current = null;
-      selectSourceRef.current = null;
       selectHighlightRef.current = null;
       socket.current?.close();
     };
@@ -1042,8 +1026,10 @@ const App: React.FC = () => {
     setIsSearchOpen(false);
     setIsDrawerOpen(true);
 
+    selectedZoneRef.current = cityName;
+    caviteLayerRef.current?.changed();
+
     if (cityName === "Cavite Province") {
-      selectSourceRef.current?.clear();
       selectHighlightRef.current?.getFeatures().clear();
       setActiveZone("Cavite Province");
       setClickedGeometry(null);
@@ -1080,13 +1066,9 @@ const App: React.FC = () => {
       setClickedGeometry(cityData.geomGeoJson);
 
       const feature = caviteSourceRef.current?.getFeatures().find(f => f.get('name') === cityName);
-      if (feature) {
-        selectSourceRef.current?.clear();
-        selectSourceRef.current?.addFeature(feature);
-        if (selectHighlightRef.current) {
-          selectHighlightRef.current.getFeatures().clear();
-          selectHighlightRef.current.getFeatures().push(feature);
-        }
+      if (feature && selectHighlightRef.current) {
+        selectHighlightRef.current.getFeatures().clear();
+        selectHighlightRef.current.getFeatures().push(feature);
       }
     }
 
