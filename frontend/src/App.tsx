@@ -79,6 +79,10 @@ const App: React.FC = () => {
   const ndviLayerRef = useRef<TileLayer<XYZ> | null>(null);
   const philippinesLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const caviteLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const caviteSourceRef = useRef<VectorSource | null>(null);
+  const selectionLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const selectSourceRef = useRef<VectorSource | null>(null);
+  const selectHighlightRef = useRef<Select | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cityDataMapRef = useRef<Map<string, { geom: any; geomGeoJson: any }>>(new Map());
   const locationLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
@@ -126,6 +130,7 @@ const App: React.FC = () => {
     document.body.className = theme;
     philippinesLayerRef.current?.changed();
     caviteLayerRef.current?.changed();
+    selectionLayerRef.current?.changed();
   }, [theme]);
 
   const translations = {
@@ -562,6 +567,7 @@ const App: React.FC = () => {
     // Styled in a refined slate palette that harmonizes with the greyed-out Philippines backdrop
     // but stands out clearly with a richer solid fill, bold crisp boundary, and prominent municipal labels
     const caviteSource = new VectorSource();
+    caviteSourceRef.current = caviteSource;
     const styleCache = new Map<string, Style>();
 
     const getCityStyle = (feature: any) => {
@@ -603,9 +609,44 @@ const App: React.FC = () => {
     });
     caviteLayerRef.current = caviteLayer;
 
+    // Dedicated high-zIndex selection layer rendered above all vector, raster, and forecast layers
+    const selectSource = new VectorSource();
+    selectSourceRef.current = selectSource;
+
+    const selectedStyleFunction = (feature: any) => {
+      const cityName = feature.get('name') || '';
+      const displayName = feature.get('displayName') || cityName;
+      const isDark = document.body.classList.contains('dark');
+
+      return new Style({
+        fill: new Fill({
+          color: isDark ? 'rgba(0, 255, 136, 0.15)' : 'rgba(0, 255, 136, 0.12)',
+        }),
+        stroke: new Stroke({
+          color: '#00FF88', // Bright high-contrast neon green highlight
+          width: 3.5,
+        }),
+        text: new Text({
+          text: displayName,
+          font: 'bold 14px Helvetica, Arial, sans-serif',
+          fill: new Fill({ color: isDark ? '#F8FAFC' : '#0F172A' }),
+          stroke: new Stroke({ color: isDark ? '#0F172A' : '#FFFFFF', width: 4 }),
+          overflow: true,
+        }),
+      });
+    };
+
+    const selectLayer = new VectorLayer({
+      source: selectSource,
+      zIndex: 40, // Permanently sits above caviteLayer (10), ndviLayer (25), and satelliteLayer (30)
+      properties: { isSelectable: false },
+      style: selectedStyleFunction,
+    });
+    selectionLayerRef.current = selectLayer;
+
     mapRef.current = new OLMap({
       target: mapElement.current,
-      layers: [ philippinesLayer, caviteLayer ],
+      layers: [ philippinesLayer, caviteLayer, selectLayer ],
       view: new View({ center: caviteCenter, zoom: 10, minZoom: 5.5, extent: phExtent }),
     });
 
@@ -613,16 +654,9 @@ const App: React.FC = () => {
     const selectHighlight = new Select({
       condition: click,
       layers: [ caviteLayer ],
-      style: new Style({
-        fill: new Fill({ color: 'rgba(0, 255, 136, 0.1)' }), // Faint neon glow so satellite/forecast imagery shows through
-        stroke: new Stroke({ color: '#00FF88', width: 3 }),  // Bright neon green border
-        text: new Text({
-          font: 'bold 14px sans-serif',
-          fill: new Fill({ color: '#00FF88' }),
-          stroke: new Stroke({ color: '#000', width: 3 })
-        })
-      }),
+      style: () => [], // Rendering is handled exclusively by selectLayer at zIndex 40 so outline is never covered
     });
+    selectHighlightRef.current = selectHighlight;
 
     mapRef.current.addInteraction(selectHighlight);
 
@@ -643,6 +677,9 @@ const App: React.FC = () => {
     selectHighlight.on('select', (e) => {
       if (e.selected.length > 0) {
         const feature = e.selected[0];
+        selectSource.clear();
+        selectSource.addFeature(feature);
+
         const cityName = feature.get('name') || "Unknown Area";
         setActiveZone(cityName);
         setSearchQuery(cityName);
@@ -687,6 +724,8 @@ const App: React.FC = () => {
         if (socket.current?.readyState === WebSocket.OPEN) {
           socket.current.send(JSON.stringify({ name: cityName }));
         }
+      } else {
+        selectSource.clear();
       }
     });
 
@@ -740,6 +779,10 @@ const App: React.FC = () => {
       if (mapRef.current) mapRef.current.setTarget(undefined);
       philippinesLayerRef.current = null;
       caviteLayerRef.current = null;
+      caviteSourceRef.current = null;
+      selectionLayerRef.current = null;
+      selectSourceRef.current = null;
+      selectHighlightRef.current = null;
       socket.current?.close();
     };
   }, []);
@@ -1000,6 +1043,8 @@ const App: React.FC = () => {
     setIsDrawerOpen(true);
 
     if (cityName === "Cavite Province") {
+      selectSourceRef.current?.clear();
+      selectHighlightRef.current?.getFeatures().clear();
       setActiveZone("Cavite Province");
       setClickedGeometry(null);
       setHealthStatus("Awaiting Target");
@@ -1033,6 +1078,16 @@ const App: React.FC = () => {
         });
       }
       setClickedGeometry(cityData.geomGeoJson);
+
+      const feature = caviteSourceRef.current?.getFeatures().find(f => f.get('name') === cityName);
+      if (feature) {
+        selectSourceRef.current?.clear();
+        selectSourceRef.current?.addFeature(feature);
+        if (selectHighlightRef.current) {
+          selectHighlightRef.current.getFeatures().clear();
+          selectHighlightRef.current.getFeatures().push(feature);
+        }
+      }
     }
 
     if (ndviLayerRef.current && mapRef.current) {
