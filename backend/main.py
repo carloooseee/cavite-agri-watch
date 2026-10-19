@@ -217,16 +217,17 @@ def get_cavite_dynamic_world():
         start = (now - timedelta(days=180)).strftime('%Y-%m-%d')
         end = now.strftime('%Y-%m-%d')
 
-        # 1. Base Dynamic World Mask
+        # 1. Base Dynamic World Mask (Mode composite over 180 days avoids single-cloud misclassification)
         dw = (
             ee.ImageCollection('GOOGLE/DYNAMICWORLD/V1')
             .filterBounds(cavite)
             .filterDate(start, end)
             .select('label')
-            .mosaic()
+            .reduce(ee.Reducer.mode())
+            .rename('label')
         )
 
-        # 2. Physics-Based Correction using NDVI
+        # 2. Physics-Based Correction using NDVI with cloud-free fallback
         def mask_clouds(img):
             qa = img.select('QA60')
             cloud_mask = 1 << 10
@@ -234,26 +235,25 @@ def get_cavite_dynamic_world():
             mask = qa.bitwiseAnd(cloud_mask).eq(0).And(qa.bitwiseAnd(cirrus_mask).eq(0))
             return img.updateMask(mask).divide(10000)
 
-        s2_composite = (
+        s2_coll = (
             ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
             .filterBounds(cavite)
             .filterDate(start, end)
-            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 30))
-            .map(mask_clouds)
-            .mosaic()
+            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 40))
         )
+        s2_composite = s2_coll.map(mask_clouds).median().unmask(s2_coll.median())
         ndvi = s2_composite.normalizedDifference(['B8', 'B4']).rename('ndvi')
 
         # Cavite province baseline: healthy gradient
         veg_palette = VEG_PALETTES['healthy']
-        is_veg = ndvi.gt(0.50).Or(dw.gte(1).And(dw.lte(5)).And(ndvi.gte(0.25)))
+        # True built areas: Dynamic World label 6 (built) verified by low vegetation vigor
+        is_built = dw.eq(6).And(ndvi.lt(0.38))
 
         # Continuous gradient for vegetation: lower vigor is lighter, denser vigor is darker
-        veg_viz = ndvi.visualize(min=0.25, max=0.80, palette=veg_palette)
-        # Built / non-vegetated areas match the unselected region color
+        veg_viz = ndvi.visualize(min=0.20, max=0.80, palette=veg_palette)
         built_viz = ee.Image.constant(1).visualize(palette=[BUILT_AREA_COLOR])
 
-        final_img = built_viz.where(is_veg, veg_viz).clip(cavite)
+        final_img = veg_viz.where(is_built, built_viz).clip(cavite)
 
         map_info = final_img.getMapId()
         return {"url_template": map_info['tile_fetcher'].url_format}
@@ -284,16 +284,17 @@ async def get_zone_dynamic_world_polygon(request: Request):
         start = (now - timedelta(days=180)).strftime('%Y-%m-%d')
         end = now.strftime('%Y-%m-%d')
 
-        # 1. Base Dynamic World Mask
+        # 1. Base Dynamic World Mask (Mode composite over 180 days avoids single-cloud misclassification)
         dw = (
             ee.ImageCollection('GOOGLE/DYNAMICWORLD/V1')
             .filterBounds(zone_geom)
             .filterDate(start, end)
             .select('label')
-            .mosaic()
+            .reduce(ee.Reducer.mode())
+            .rename('label')
         )
 
-        # 2. Physics-Based Correction using NDVI
+        # 2. Physics-Based Correction using NDVI with cloud-free fallback
         def mask_clouds(img):
             qa = img.select('QA60')
             cloud_mask = 1 << 10
@@ -301,14 +302,13 @@ async def get_zone_dynamic_world_polygon(request: Request):
             mask = qa.bitwiseAnd(cloud_mask).eq(0).And(qa.bitwiseAnd(cirrus_mask).eq(0))
             return img.updateMask(mask).divide(10000)
 
-        s2_composite = (
+        s2_coll = (
             ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
             .filterBounds(zone_geom)
             .filterDate(start, end)
-            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 30))
-            .map(mask_clouds)
-            .mosaic()
+            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 40))
         )
+        s2_composite = s2_coll.map(mask_clouds).median().unmask(s2_coll.median())
         ndvi = s2_composite.normalizedDifference(['B8', 'B4']).rename('ndvi')
 
         # If status was not provided in request, infer from zone mean NDVI
@@ -327,17 +327,15 @@ async def get_zone_dynamic_world_polygon(request: Request):
 
         veg_palette = get_veg_palette(status)
 
-        # Vegetation condition: high NDVI or classified as DW vegetation with moderate NDVI
-        is_veg = ndvi.gt(0.50).Or(dw.gte(1).And(dw.lte(5)).And(ndvi.gte(0.25)))
+        # True built areas: Dynamic World label 6 (built) verified by low vegetation vigor
+        is_built = dw.eq(6).And(ndvi.lt(0.38))
 
         # Continuous gradient for vegetation: lighter on sparse areas, darker on dense lush areas
-        veg_viz = ndvi.visualize(min=0.25, max=0.80, palette=veg_palette)
-
-        # Built / non-vegetation area: styled like the other regions when not selected
+        veg_viz = ndvi.visualize(min=0.20, max=0.80, palette=veg_palette)
         built_viz = ee.Image.constant(1).visualize(palette=[built_color])
 
-        # Composite and clip to exact municipality geometry
-        final_img = built_viz.where(is_veg, veg_viz).clip(zone_geom)
+        # Composite: full vegetation gradient with only true built structures stamped in built_color
+        final_img = veg_viz.where(is_built, built_viz).clip(zone_geom)
 
         map_info = final_img.getMapId()
         return {"url_template": map_info['tile_fetcher'].url_format}

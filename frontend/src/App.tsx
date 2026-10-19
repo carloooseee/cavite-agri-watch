@@ -42,7 +42,9 @@ import {
   ChevronRight,
   ChevronDown,
   LocateFixed,
-  Loader2
+  Loader2,
+  Compass,
+  HelpCircle
 } from 'lucide-react';
 
 const CITIES = [
@@ -69,6 +71,228 @@ const CITIES = [
   { name: 'Ternate' },
   { name: 'Trece Martires' }
 ];
+
+const SPECTRAL_INFO: Record<string, {
+  fullName: string;
+  category: { EN: string; TL: string };
+  whatItIs: { EN: string; TL: string };
+  analogy: { EN: string; TL: string };
+  ranges: { EN: string; TL: string };
+  interpret: (val: number | undefined, lang: 'EN' | 'TL') => { label: string; statusClass: string; text: string };
+}> = {
+  NDVI: {
+    fullName: "Normalized Difference Vegetation Index",
+    category: {
+      EN: "Overall Plant Greenness & Photosynthetic Vigor",
+      TL: "Pangkalahatang Sigla at Berde ng Pananim"
+    },
+    whatItIs: {
+      EN: "Measures the balance between red sunlight (which healthy leaves absorb to generate food) and near-infrared light (which live cells scatter back into space). Higher numbers indicate rich, active foliage.",
+      TL: "Sinusukat ang pulang liwanag na sinisipsip ng dahon at infrared na pinatatalbog nito. Ang mataas na marka ay patunay ng masiglang kloropil at mabilis na paglaki ng halaman."
+    },
+    analogy: {
+      EN: "Think of NDVI like a plant's heartbeat: high values mean active, vigorous growth; low values signal thinning foliage or moisture exhaustion.",
+      TL: "Parang pulso ng halaman: kapag mataas, masigla at lumalaki; kapag mababa, nanlalata o kinakapos sa tubig."
+    },
+    ranges: {
+      EN: "Optimal: > 0.60 | Mild: 0.45 – 0.58 | Moderate: 0.30 – 0.45 | Severe: < 0.30",
+      TL: "Malusog: > 0.60 | Bahagyang Pagbaba: 0.45 – 0.58 | Katamtaman: 0.30 – 0.45 | Malala: < 0.30"
+    },
+    interpret: (val, lang) => {
+      const v = val ?? 0;
+      if (v >= 0.60) {
+        return {
+          label: lang === 'EN' ? "Optimal Vigor" : "Napakalusog",
+          statusClass: "#15803d",
+          text: lang === 'EN' ? "Crops are thriving with thick foliage and high photosynthetic activity." : "Napakasigla ng pananim na may makapal at berdeng mga dahon."
+        };
+      }
+      if (v >= 0.45) {
+        return {
+          label: lang === 'EN' ? "Mild Strain" : "Bahagyang Napapagod",
+          statusClass: "#b45309",
+          text: lang === 'EN' ? "Early vigor drop; plants are experiencing minor heat or water fatigue." : "Maagang pagbaba ng sigla; may kaunting stress sa init o patubig."
+        };
+      }
+      if (v >= 0.30) {
+        return {
+          label: lang === 'EN' ? "Moderate Stress" : "Katamtamang Stress",
+          statusClass: "#ea580c",
+          text: lang === 'EN' ? "Noticeable yellowing (chlorosis) and thinning canopy; intervention needed." : "Kapansin-pansing paninilaw at pagkalagas; kailangan ng aksyon."
+        };
+      }
+      return {
+        label: lang === 'EN' ? "Severe Deficit" : "Malalang Kakulangan",
+        statusClass: "#dc2626",
+        text: lang === 'EN' ? "Critical vegetative decline or bare soil; high crop loss risk." : "Kritikal na pagkasira ng dahon o tuyong lupa; nanganganib ang ani."
+      };
+    }
+  },
+  EVI: {
+    fullName: "Enhanced Vegetation Index",
+    category: {
+      EN: "Structural Canopy Volume & Biomass Depth",
+      TL: "Kapal ng Dahon at Dami ng Tanim"
+    },
+    whatItIs: {
+      EN: "An improved vegetation metric that penetrates through dense tropical foliage (like banana, corn, or lush rice) without saturating like standard NDVI.",
+      TL: "Mas advanced na panukat na tumatagos sa makakapal na dahon (gaya ng sagingan, maisan, o palayan) nang hindi nagkakamali dahil sa sobrang berde."
+    },
+    analogy: {
+      EN: "Like an X-ray through a crowded jungle canopy: reveals real biomass depth beneath the top layer of leaves.",
+      TL: "Parang X-ray sa masusukal na halaman: nakikita kung gaano kakapal ang dahon hanggang sa pinaka-ilalim."
+    },
+    ranges: {
+      EN: "Dense: > 0.40 | Moderate: 0.20 – 0.40 | Sparse / Open: < 0.20",
+      TL: "Makapal: > 0.40 | Katamtaman: 0.20 – 0.40 | Manipis: < 0.20"
+    },
+    interpret: (val, lang) => {
+      const v = val ?? 0;
+      if (v >= 0.40) {
+        return {
+          label: lang === 'EN' ? "Dense Biomass" : "Makapal na Taniman",
+          statusClass: "#15803d",
+          text: lang === 'EN' ? "Deep canopy architecture with strong leaf coverage." : "Makapal ang mga dahon at may magandang proteksyon sa lupa."
+        };
+      }
+      if (v >= 0.20) {
+        return {
+          label: lang === 'EN' ? "Moderate Canopy" : "Katamtamang Kapal",
+          statusClass: "#b45309",
+          text: lang === 'EN' ? "Standard canopy density typical of mid-stage vegetable or grain crops." : "Karaniwang kapal ng dahon para sa lumalaking gulay o palay."
+        };
+      }
+      return {
+        label: lang === 'EN' ? "Sparse Cover" : "Manipis na Tanim",
+        statusClass: "#ea580c",
+        text: lang === 'EN' ? "Thin canopy exposing bare soil to high evaporation." : "Manipis ang dahon kaya madaling matuyo ang lupa sa init."
+      };
+    }
+  },
+  NDWI: {
+    fullName: "Normalized Difference Water Index",
+    category: {
+      EN: "Canopy & Surface Moisture Saturation",
+      TL: "Basa at Halumigmig ng Dahon at Lupa"
+    },
+    whatItIs: {
+      EN: "Uses shortwave-infrared absorption to gauge how much liquid water is stored across plant leaves and surrounding topsoil.",
+      TL: "Gumagamit ng infrared upang malaman kung gaano karaming likidong tubig ang nasa mga dahon at lupa."
+    },
+    analogy: {
+      EN: "Like a satellite sponge test: tells you immediately if the field is freshly quenched or starting to dry out.",
+      TL: "Parang basang espongha mula sa kalawakan: malalaman agad kung basang-basa pa o natutuyo na ang taniman."
+    },
+    ranges: {
+      EN: "Hydrated: > 0.15 | Normal: 0.00 – 0.15 | Water Deficit: < 0.00",
+      TL: "Basang-basa: > 0.15 | Katamtaman: 0.00 – 0.15 | Tuyot: < 0.00"
+    },
+    interpret: (val, lang) => {
+      const v = val ?? 0;
+      if (v >= 0.15) {
+        return {
+          label: lang === 'EN' ? "Well Hydrated" : "Sapat sa Tubig",
+          statusClass: "#15803d",
+          text: lang === 'EN' ? "Abundant water content in leaves and soil profile." : "Sapat na sapat ang tubig sa lupa at mga dahon."
+        };
+      }
+      if (v >= 0.00) {
+        return {
+          label: lang === 'EN' ? "Adequate Moisture" : "Katamtamang Basa",
+          statusClass: "#b45309",
+          text: lang === 'EN' ? "Normal moisture; monitor during extended hot spells." : "Normal ang basa ng lupa; bantayan kung tuloy-tuloy ang init."
+        };
+      }
+      return {
+        label: lang === 'EN' ? "Moisture Deficit" : "Kinakapos sa Tubig",
+        statusClass: "#dc2626",
+        text: lang === 'EN' ? "Topsoil and foliage are parched; irrigation is urgently needed." : "Tuyot ang lupa at dahon; kailangan agad ng patubig."
+      };
+    }
+  },
+  LSWI: {
+    fullName: "Land Surface Water Index",
+    category: {
+      EN: "Internal Leaf Cell Hydration",
+      TL: "Tubig sa Loob ng Selyula ng Halaman"
+    },
+    whatItIs: {
+      EN: "Specifically targets the water inside the spongy mesophyll cells of living leaves. It is the primary satellite early warning for agricultural drought.",
+      TL: "Tinitingnan ang tubig sa loob ng selyula ng dahon. Ito ang pinaka-maagang babala sa tagtuyot sa agrikultura."
+    },
+    analogy: {
+      EN: "Early drought radar: catches cellular dehydration days before human eyes can see leaves wilt under the noon sun.",
+      TL: "Maagang radar sa tagtuyot: nahuhuli ang pagkaubos ng tubig sa dahon mga araw bago pa makitang lanta ang halaman."
+    },
+    ranges: {
+      EN: "Plump Cells: > 0.15 | Cellular Thirst: 0.00 – 0.15 | Osmotic Drought: < 0.00",
+      TL: "Makatas: > 0.15 | Uhaw: 0.00 – 0.15 | Matinding Tagtuyot: < 0.00"
+    },
+    interpret: (val, lang) => {
+      const v = val ?? 0;
+      if (v >= 0.15) {
+        return {
+          label: lang === 'EN' ? "Cellularly Turgid" : "Makatas ang Selyula",
+          statusClass: "#15803d",
+          text: lang === 'EN' ? "Plant cells are fully inflated with water, keeping stems upright and pores open." : "Puno ng tubig ang mga selyula kaya tuwid ang tangkay."
+        };
+      }
+      if (v >= 0.00) {
+        return {
+          label: lang === 'EN' ? "Mild Cellular Thirst" : "Bahagyang Nauuhaw",
+          statusClass: "#b45309",
+          text: lang === 'EN' ? "Leaves are closing stomata to conserve moisture; irrigate within 48 hours." : "Nagsasara ang butas ng dahon para magtipid sa tubig; diligan sa loob ng 48 oras."
+        };
+      }
+      return {
+        label: lang === 'EN' ? "Severe Dehydration" : "Matinding Pagkatuyo",
+        statusClass: "#dc2626",
+        text: lang === 'EN' ? "Cellular collapse from extreme water deficit; risk of permanent leaf scorch." : "Nangungulubot ang mga selyula; panganib ng pagkasunog ng dahon."
+      };
+    }
+  },
+  NDRE: {
+    fullName: "Normalized Difference Red Edge",
+    category: {
+      EN: "Early Nitrogen & Chlorophyll Health",
+      TL: "Maagang Babala sa Nutrisyon at Kloropil"
+    },
+    whatItIs: {
+      EN: "Monitors the narrow 'Red Edge' wavelength where plant reflectance jumps sharply. Senses leaf chlorophyll and nitrogen levels before visible symptoms appear.",
+      TL: "Sinusukat ang 'Red Edge' na liwanag upang matukoy ang kloropil at nitrogen bago pa man makita ang paninilaw."
+    },
+    analogy: {
+      EN: "Like a fever thermometer for plants: catches nutrient starvation and root illness while the crop still looks green from a distance.",
+      TL: "Parang thermometer sa lagnat: nalalaman kung may sakit o kulang sa abono ang halaman kahit mukha pa itong berde sa malayo."
+    },
+    ranges: {
+      EN: "Optimal: > 0.35 | Early Warning: 0.20 – 0.35 | Chlorophyll Deficient: < 0.20",
+      TL: "Sagana: > 0.35 | May Babala: 0.20 – 0.35 | Kulang sa Kloropil: < 0.20"
+    },
+    interpret: (val, lang) => {
+      const v = val ?? 0;
+      if (v >= 0.35) {
+        return {
+          label: lang === 'EN' ? "Rich Chlorophyll" : "Sagana sa Kloropil",
+          statusClass: "#15803d",
+          text: lang === 'EN' ? "Healthy nitrogen uptake and strong chlorophyll production." : "Maganda ang pagsipsip ng nitrogen at sapat ang nutrisyon."
+        };
+      }
+      if (v >= 0.20) {
+        return {
+          label: lang === 'EN' ? "Early Chlorosis" : "Maagang Paninilaw",
+          statusClass: "#b45309",
+          text: lang === 'EN' ? "Early nitrogen starvation or root absorption restriction detected." : "May maagang kakulangan sa abono o hirap ang ugat sumipsip."
+        };
+      }
+      return {
+        label: lang === 'EN' ? "Nutrient Starved" : "Kulang sa Sustansya",
+        statusClass: "#dc2626",
+        text: lang === 'EN' ? "Impaired chlorophyll synthesis; foliar feeding or fertilizer needed." : "Bagsak ang kloropil; kailangan agad ng pataba o foliar spray."
+      };
+    }
+  }
+};
 
 const App: React.FC = () => {
   const mapElement = useRef<HTMLDivElement | null>(null);
@@ -113,6 +337,8 @@ const App: React.FC = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [selectedSpectralMetric, setSelectedSpectralMetric] = useState<string>('NDVI');
+  const [showLandCoverExplainer, setShowLandCoverExplainer] = useState<boolean>(false);
 
   const handleToggleMenu = () => {
     if (window.innerWidth <= 840) {
@@ -160,6 +386,12 @@ const App: React.FC = () => {
       awaiting: "Awaiting Target",
       download_report: "Download PDF Report",
       spectral_title: "Spectral Metrics",
+      map_legend: "Map Legend",
+      curious_guide_title: "Curious Mind's Guide: Spectral Sensors",
+      tap_to_explore: "Tap any metric chip above to explore what it measures",
+      analogy_title: "Everyday Analogy",
+      what_score_means: "What this score means",
+      sensor_ranges: "Benchmark Scale",
       stress_levels: {
         none: "No Stress",
         mild: "Mild Stress",
@@ -198,6 +430,12 @@ const App: React.FC = () => {
       awaiting: "Naghihintay ng Target",
       download_report: "I-download ang PDF Report",
       spectral_title: "Spectral Metrics",
+      map_legend: "Alamat ng Mapa",
+      curious_guide_title: "Gabay sa Pag-unawa: Mga Sensor ng Satellite",
+      tap_to_explore: "Pindutin ang alinmang sensor sa itaas upang maintindihan",
+      analogy_title: "Pang-araw-araw na Halimbawa",
+      what_score_means: "Kahulugan ng markang ito",
+      sensor_ranges: "Pamantayan sa Pagsukat",
       stress_levels: {
         none: "Walang Stress",
         mild: "Bahagyang Stress",
@@ -1427,6 +1665,8 @@ const App: React.FC = () => {
       {/* 1. Map Canvas (Full screen background) */}
       <div ref={mapElement} className="map-container"></div>
 
+
+
       {/* 2. Top-Center Floating Zone Pill */}
       <div className="gm-top-center-pill">
         <MapPin size={16} color="var(--gm-primary-blue)" />
@@ -1765,6 +2005,7 @@ const App: React.FC = () => {
             </div>
             <span>Center</span>
           </button>
+
         </div>
 
         {/* Progress Bar (if active) */}
@@ -1783,41 +2024,81 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Dynamic World Legend if active */}
+        {/* Dynamic World Land Cover & Crop Vigor Overlay Legend */}
         {activeLayer === 'DynamicWorld' && (
-          <div style={{ padding: '10px 18px', background: 'var(--gm-surface-hover)', borderBottom: '1px solid var(--gm-divider)', fontSize: '12px' }}>
-            <strong>Land Cover & Crop Vigor (10m Resolution)</strong>
-            <div style={{ display: 'flex', gap: '16px', marginTop: '6px', alignItems: 'center' }}>
+          <div className="gm-landcover-legend-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span 
+                <Layers size={14} color="var(--gm-primary-blue)" />
+                <strong style={{ fontSize: '12.5px', color: 'var(--gm-text-primary)' }}>
+                  {lang === 'EN' ? 'Land Cover & Crop Vigor (10m Resolution)' : 'Takip ng Lupa at Sigla ng Tanim (10m)'}
+                </strong>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowLandCoverExplainer(!showLandCoverExplainer)}
+                className="gm-legend-help-btn"
+                title={lang === 'EN' ? "How to read this overlay" : "Paano basahin ang mapa"}
+              >
+                <HelpCircle size={13} />
+                <span>{showLandCoverExplainer ? (lang === 'EN' ? 'Hide Guide' : 'Itago') : (lang === 'EN' ? 'How to Read' : 'Gabay')}</span>
+              </button>
+            </div>
+
+            {/* Gradient Bar with Min/Max and Built Area Swatch */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--gm-text-secondary)', marginBottom: '3px' }}>
+                  <span><strong>{lang === 'EN' ? 'Crop Canopy:' : 'Dahon ng Tanim:'}</strong></span>
+                  <span style={{ fontSize: '10.5px', color: 'var(--gm-text-tertiary)' }}>
+                    {lang === 'EN' ? 'Light (Sparse / Young) ➔ Dark (Thick / Dense Canopy)' : 'Maliwanag (Manipis) ➔ Madilim (Makapal na Dahon)'}
+                  </span>
+                </div>
+                <div 
                   style={{ 
-                    width: '32px', 
-                    height: '10px', 
-                    borderRadius: '2px', 
-                    display: 'inline-block',
+                    width: '100%', 
+                    height: '11px', 
+                    borderRadius: '3px', 
                     background: healthStatus.includes('Damaged') || healthStatus.includes('Stressed')
                       ? 'linear-gradient(to right, #FCA5A5, #EF4444, #450A0A)'
                       : healthStatus.includes('Moderate') || healthStatus.includes('Warning')
                         ? 'linear-gradient(to right, #FEF08A, #FACC15, #CA8A04, #713F12)'
                         : 'linear-gradient(to right, #86EFAC, #22C55E, #16A34A, #14532D)',
+                    border: '1px solid rgba(0,0,0,0.15)'
                   }} 
                 />
-                <span><strong>Vegetation (Gradient: Light to Dark Vigor)</strong></span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span 
-                  style={{ 
-                    width: '12px', 
-                    height: '10px', 
-                    background: '#111827', 
-                    border: '1px solid rgba(255, 255, 255, 0.25)',
-                    borderRadius: '2px', 
-                    display: 'inline-block' 
-                  }} 
-                />
-                <span><strong>Built Area (Dark / Urban)</strong></span>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11.5px', color: 'var(--gm-text-secondary)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span 
+                    style={{ 
+                      width: '14px', 
+                      height: '10px', 
+                      background: '#111827', 
+                      border: '1px solid rgba(255, 255, 255, 0.35)',
+                      borderRadius: '2px', 
+                      display: 'inline-block' 
+                    }} 
+                  />
+                  <span><strong>{lang === 'EN' ? 'Built Area / Infrastructure:' : 'Tirahan at Kalsada:'}</strong></span>
+                </div>
+                <span style={{ fontSize: '11px', color: 'var(--gm-text-tertiary)' }}>
+                  {lang === 'EN' ? 'Excluded non-crop surfaces' : 'Hindi sakop na taniman'}
+                </span>
               </div>
             </div>
+
+            {/* Collapsible Quick Guide for Curious Individuals */}
+            {showLandCoverExplainer && (
+              <div className="gm-legend-explainer-box">
+                <p>
+                  {lang === 'EN'
+                    ? "🛰️ This high-resolution overlay isolates living crops from roads and buildings. Dark charcoal areas represent urban infrastructure. Colored pixels show active vegetation, where darker shades represent thicker leaf density and higher biomass."
+                    : "🛰️ Ibinubukod ng mapa ang buhay na tanim sa mga kalsada at bahay. Ang kulay uling ay mga istruktura, habang ang may kulay ay buhay na pananim. Ang mas madidilim na kulay ay nangangahulugang mas makapal at masagana ang mga dahon."}
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -1826,14 +2107,9 @@ const App: React.FC = () => {
           {/* AI 30-Day Predictive Outlook Card */}
           {forecast && (
             <div className="gm-section-card">
-              <div className="gm-section-title" style={{ justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Sparkles size={16} color="var(--gm-primary-blue)" />
-                  <span>{t.forecast_title}</span>
-                </div>
-                <span className="gm-fao-tag">
-                  ✓ {t.fao_badge}
-                </span>
+              <div className="gm-section-title">
+                <Sparkles size={16} color="var(--gm-primary-blue)" />
+                <span>{t.forecast_title}</span>
               </div>
               <p style={{ fontSize: '13px', color: 'var(--gm-text-secondary)' }}>
                 Target: <strong>{forecast.city || activeZone}</strong>
@@ -1953,60 +2229,219 @@ const App: React.FC = () => {
           {/* Advanced Technical Details */}
           {showAdvanced && (
             <>
+              {/* 1. Map & Color Legend */}
+              <div className="gm-section-card">
+                <div className="gm-section-title">
+                  <Compass size={16} color="var(--gm-primary-blue)" />
+                  <span>{lang === 'EN' ? 'Map & Color Legend' : 'Alamat ng Kulay sa Mapa'}</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--gm-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                    {lang === 'EN' ? 'Crop Health Scale (NDVI)' : 'Antas ng Kalusugan (NDVI)'}
+                  </span>
+                  <div className="gm-legend-item-row">
+                    <span className="gm-legend-swatch" style={{ background: '#15803d' }}></span>
+                    <span><strong>{lang === 'EN' ? 'No Stress (> 0.60):' : 'Walang Stress (> 0.60):'}</strong> {lang === 'EN' ? 'Optimal photosynthesis & lush vigor' : 'Masiglang paglaki'}</span>
+                  </div>
+                  <div className="gm-legend-item-row">
+                    <span className="gm-legend-swatch" style={{ background: '#b45309' }}></span>
+                    <span><strong>{lang === 'EN' ? 'Mild Stress (0.45 - 0.58):' : 'Bahagyang Stress (0.45 - 0.58):'}</strong> {lang === 'EN' ? 'Early heat or moisture fatigue' : 'Maagang pagkapagod sa init o tubig'}</span>
+                  </div>
+                  <div className="gm-legend-item-row">
+                    <span className="gm-legend-swatch" style={{ background: '#ea580c' }}></span>
+                    <span><strong>{lang === 'EN' ? 'Moderate Stress (0.30 - 0.45):' : 'Katamtaman (0.30 - 0.45):'}</strong> {lang === 'EN' ? 'Noticeable leaf chlorosis & yellowing' : 'Paninilaw ng dahon'}</span>
+                  </div>
+                  <div className="gm-legend-item-row">
+                    <span className="gm-legend-swatch" style={{ background: '#dc2626' }}></span>
+                    <span><strong>{lang === 'EN' ? 'Severe Stress (< 0.30):' : 'Malala (< 0.30):'}</strong> {lang === 'EN' ? 'Severe wilting, critical yield loss risk' : 'Matinding pagkalanta, panganib ng pagkasira'}</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px', borderTop: '1px solid var(--gm-divider)', paddingTop: '10px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--gm-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                    {lang === 'EN' ? 'Map Boundaries & Surface' : 'Hangganan at Katangian'}
+                  </span>
+                  <div className="gm-legend-item-row">
+                    <span className="gm-legend-swatch" style={{ background: '#111827', border: '1px solid rgba(255,255,255,0.25)' }}></span>
+                    <span><strong>{lang === 'EN' ? 'Built Area:' : 'Tirahan/Kalsada:'}</strong> {lang === 'EN' ? 'Urban infrastructure & non-cropland' : 'Mga bahay at kalsada'}</span>
+                  </div>
+                  <div className="gm-legend-item-row">
+                    <span className="gm-legend-swatch" style={{ background: theme === 'dark' ? '#1E293B' : '#64748B' }}></span>
+                    <span><strong>{lang === 'EN' ? 'Selected Municipality:' : 'Napiling Bayan:'}</strong> {lang === 'EN' ? 'Darker highlight on click' : 'Mas madilim na kulay kapag pinili'}</span>
+                  </div>
+                  <div className="gm-legend-item-row">
+                    <span className="gm-legend-swatch" style={{ background: theme === 'dark' ? '#0b1320' : '#a5c9eb' }}></span>
+                    <span><strong>{lang === 'EN' ? 'Water Bodies:' : 'Katubigan:'}</strong> {lang === 'EN' ? 'Manila Bay & Laguna de Bay' : 'Manila Bay at Laguna de Bay'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Satellite Spectral Indices & AI Diagnostics */}
               <div className="gm-section-card">
                 <div className="gm-section-title">
                   <Info size={16} color="var(--gm-primary-blue)" />
                   <span>{t.spectral_title}</span>
                 </div>
 
+                {/* Primary AI Health Metric: NDVI */}
                 {forecast && (
-                  <div style={{ padding: '8px 12px', background: 'var(--gm-surface-hover)', borderRadius: 'var(--gm-radius-sm)', marginBottom: '12px', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: 'var(--gm-text-secondary)' }}>{lang === 'EN' ? 'NDVI Predicted (30-day):' : 'Tinatayang NDVI (30-araw):'}</span>
-                    <strong style={{ fontSize: '14px', color: 'var(--gm-primary-blue)' }}>{forecast.forecast_30_days.toFixed(2)}</strong>
+                  <div style={{ padding: '10px 12px', background: 'var(--gm-surface-hover)', borderRadius: 'var(--gm-radius-sm)', marginBottom: '10px', border: '1px solid var(--gm-border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 600, fontSize: '12.5px', color: 'var(--gm-text-primary)' }}>
+                        🌿 {lang === 'EN' ? 'Primary AI Forecast (NDVI):' : 'Pangunahing Hula ng AI (NDVI):'}
+                      </span>
+                      <strong style={{ fontSize: '14px', color: 'var(--gm-primary-blue)' }}>
+                        {forecast.current_ndvi.toFixed(2)} → {forecast.forecast_30_days.toFixed(2)} (30d)
+                      </strong>
+                    </div>
+                    <p style={{ fontSize: '11px', color: 'var(--gm-text-tertiary)', margin: 0, lineHeight: 1.35 }}>
+                      {lang === 'EN'
+                        ? 'NDVI is the primary crop vigor index tracked and projected into the future by the AI. The supporting diagnostic indices below explain WHY vigor is changing (water deficit vs. nutrient shortage vs. canopy density).'
+                        : 'Sinusukat ng NDVI ang kabuuang sigla ng tanim at ang pangunahing tinataya ng AI. Ang mga karagdagang sensor sa ibaba ang nagsusuri sa DAHILAN ng pagbabago (tubig, pataba, o kapal ng dahon).'}
+                    </p>
                   </div>
                 )}
 
-                <div className="gm-spectral-grid">
-                  <div className="gm-spectral-chip">
-                    <span className="gm-spectral-name">NDVI</span>
-                    <span className="gm-spectral-val">{forecast?.current_ndvi !== undefined ? forecast.current_ndvi.toFixed(2) : '--'}</span>
-                    <span className="gm-spectral-desc">Vegetation vigor</span>
-                  </div>
-                  <div className="gm-spectral-chip">
-                    <span className="gm-spectral-name">EVI</span>
-                    <span className="gm-spectral-val">{forecast?.evi !== undefined ? forecast.evi.toFixed(2) : '--'}</span>
-                    <span className="gm-spectral-desc">Canopy index</span>
-                  </div>
-                  <div className="gm-spectral-chip">
-                    <span className="gm-spectral-name">NDWI</span>
-                    <span className="gm-spectral-val">{forecast?.ndwi !== undefined ? forecast.ndwi.toFixed(2) : '--'}</span>
-                    <span className="gm-spectral-desc">Moisture level</span>
-                  </div>
-                  <div className="gm-spectral-chip">
-                    <span className="gm-spectral-name">LSWI</span>
-                    <span className="gm-spectral-val">{forecast?.lswi !== undefined ? forecast.lswi.toFixed(2) : '--'}</span>
-                    <span className="gm-spectral-desc">Leaf water content</span>
-                  </div>
-                  <div className="gm-spectral-chip">
-                    <span className="gm-spectral-name">NDRE</span>
-                    <span className="gm-spectral-val">{forecast?.ndre !== undefined ? forecast.ndre.toFixed(2) : '--'}</span>
-                    <span className="gm-spectral-desc">Red Edge early stress</span>
-                  </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--gm-text-tertiary)', fontStyle: 'italic' }}>
+                    {t.tap_to_explore}
+                  </span>
                 </div>
 
+                <div className="gm-spectral-grid">
+                  {[
+                    { key: 'NDVI', val: forecast?.current_ndvi, desc: lang === 'EN' ? 'Vegetation vigor' : 'Sigla ng tanim' },
+                    { key: 'NDWI', val: forecast?.ndwi, desc: lang === 'EN' ? 'Canopy water check' : 'Suri sa tubig ng dahon' },
+                    { key: 'LSWI', val: forecast?.lswi, desc: lang === 'EN' ? 'Leaf cell hydration' : 'Tubig sa selyula' },
+                    { key: 'NDRE', val: forecast?.ndre, desc: lang === 'EN' ? 'Nitrogen & early stress' : 'Babala sa pataba' },
+                    { key: 'EVI', val: forecast?.evi, desc: lang === 'EN' ? 'Dense canopy index' : 'Kapal ng dahon' },
+                  ].map(item => {
+                    const info = SPECTRAL_INFO[item.key];
+                    const interp = info.interpret(item.val, lang);
+                    const isSelected = selectedSpectralMetric === item.key;
+                    return (
+                      <div 
+                        key={item.key} 
+                        className={`gm-spectral-chip ${isSelected ? 'active' : ''}`}
+                        onClick={() => setSelectedSpectralMetric(item.key)}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <div className="gm-spectral-chip-header">
+                          <span className="gm-spectral-name">{item.key}</span>
+                          <span className="gm-spectral-dot" style={{ backgroundColor: interp.statusClass }} />
+                        </div>
+                        <div className="gm-spectral-val">{item.val !== undefined ? item.val.toFixed(2) : '--'}</div>
+                        <div className="gm-spectral-status" style={{ color: interp.statusClass }} title={interp.label}>
+                          {interp.label}
+                        </div>
+                        <span className="gm-spectral-desc">{item.desc}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Curious Learner Explainer Card for Selected Metric */}
+                {selectedSpectralMetric && SPECTRAL_INFO[selectedSpectralMetric] && (() => {
+                  const info = SPECTRAL_INFO[selectedSpectralMetric];
+                  const currentVal = selectedSpectralMetric === 'NDVI' ? forecast?.current_ndvi
+                    : selectedSpectralMetric === 'EVI' ? forecast?.evi
+                    : selectedSpectralMetric === 'NDWI' ? forecast?.ndwi
+                    : selectedSpectralMetric === 'LSWI' ? forecast?.lswi
+                    : forecast?.ndre;
+                  const interp = info.interpret(currentVal, lang);
+
+                  return (
+                    <div className="gm-spectral-explainer-card">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                        <div>
+                          <strong style={{ fontSize: '13px', color: 'var(--gm-text-primary)' }}>
+                            {selectedSpectralMetric} — {info.fullName}
+                          </strong>
+                          <div style={{ fontSize: '11px', color: 'var(--gm-text-secondary)', marginTop: '1px' }}>
+                            {info.category[lang]}
+                          </div>
+                        </div>
+                        <span 
+                          className="gm-explainer-badge"
+                          style={{ 
+                            color: interp.statusClass, 
+                            backgroundColor: `${interp.statusClass}15`,
+                            border: `1px solid ${interp.statusClass}35`
+                          }}
+                        >
+                          {interp.label} ({currentVal !== undefined ? currentVal.toFixed(2) : '--'})
+                        </span>
+                      </div>
+
+                      <p style={{ fontSize: '12px', color: 'var(--gm-text-secondary)', margin: 0, lineHeight: 1.45 }}>
+                        {info.whatItIs[lang]}
+                      </p>
+
+                      <div className="gm-explainer-analogy">
+                        <strong>💡 {t.analogy_title}:</strong> "{info.analogy[lang]}"
+                      </div>
+
+                      <div style={{ fontSize: '11.5px', color: 'var(--gm-text-secondary)', lineHeight: 1.4 }}>
+                        <strong>{t.what_score_means}:</strong> {interp.text}
+                      </div>
+
+                      <div className="gm-explainer-range">
+                        <strong>{t.sensor_ranges}:</strong> {info.ranges[lang]}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {forecast && (
-                  <div style={{ marginTop: '10px', fontSize: '12px', borderTop: '1px solid var(--gm-divider)', paddingTop: '8px', color: 'var(--gm-text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <p>CNN Softmax Prob: <strong>{forecast.softmax_prob != null ? (forecast.softmax_prob * 100).toFixed(1) + '%' : '--'}</strong></p>
-                    {forecast.landcover && (
-                      <p>CNN Land Cover: <strong>{forecast.landcover.label}</strong> ({(forecast.landcover.vegetated_probability * 100).toFixed(1)}% veg)</p>
-                    )}
+                  <div style={{ marginTop: '14px', fontSize: '12px', borderTop: '1px solid var(--gm-divider)', paddingTop: '10px', color: 'var(--gm-text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ fontWeight: 600, color: 'var(--gm-text-primary)', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Activity size={14} color="var(--gm-primary-blue)" />
+                      <span>{lang === 'EN' ? 'Field Verification & Weather Sensors:' : 'Pagsusuri sa Bukid at Panahon:'}</span>
+                    </div>
+
                     {forecast.rainfall_mm != null && (
-                      <p>CHIRPS Rainfall (30d): <strong>{forecast.rainfall_mm.toFixed(1)} mm</strong></p>
+                      <div style={{ padding: '6px 10px', background: 'var(--gm-surface-hover)', borderRadius: '6px', border: '1px solid var(--gm-border)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>🌧️ <strong>CHIRPS Satellite Rainfall (30d):</strong></span>
+                          <strong style={{ color: 'var(--gm-primary-blue)' }}>{forecast.rainfall_mm.toFixed(1)} mm</strong>
+                        </div>
+                        <p style={{ fontSize: '11px', color: 'var(--gm-text-tertiary)', margin: '2px 0 0 0' }}>
+                          {lang === 'EN' ? 'Total accumulated precipitation over this municipality from weather satellites.' : 'Kabuuang ulan na naipon sa bayang ito mula sa mga satellite ng panahon.'}
+                        </p>
+                      </div>
                     )}
+
+                    {forecast.landcover && (
+                      <div style={{ padding: '6px 10px', background: 'var(--gm-surface-hover)', borderRadius: '6px', border: '1px solid var(--gm-border)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>🛰️ <strong>Land Cover Verification:</strong></span>
+                          <strong style={{ color: '#15803d' }}>{forecast.landcover.label}</strong>
+                        </div>
+                        <p style={{ fontSize: '11px', color: 'var(--gm-text-tertiary)', margin: '2px 0 0 0' }}>
+                          {lang === 'EN'
+                            ? 'Verified active agricultural cropland (automatically filters out urban roads and built structures).'
+                            : 'Kinumpirma ang aktibong taniman (sinasala ang mga kalsada at bahay).'}
+                        </p>
+                      </div>
+                    )}
+
                     {forecast.opa_alert_probability != null && (
-                      <p>OPA Alert: <strong>{(forecast.opa_alert_probability * 100).toFixed(0)}%</strong> (score {forecast.opa_alert_score})</p>
+                      <div style={{ padding: '6px 10px', background: 'var(--gm-surface-hover)', borderRadius: '6px', border: '1px solid var(--gm-border)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>🏛️ <strong>Provincial Agriculturist Alert (OPA):</strong></span>
+                          <strong style={{ color: forecast.opa_alert_probability > 0.4 ? '#dc2626' : '#15803d' }}>
+                            {(forecast.opa_alert_probability * 100).toFixed(0)}% Risk
+                          </strong>
+                        </div>
+                        <p style={{ fontSize: '11px', color: 'var(--gm-text-tertiary)', margin: '2px 0 0 0' }}>
+                          {lang === 'EN'
+                            ? 'Calibrated with historical damage logs from the Cavite Office of the Provincial Agriculturist.'
+                            : 'Ibinase sa mga nakaraang talaan ng pinsala ng Tanggapan ng Panlalawigang Agrikultor ng Cavite.'}
+                        </p>
+                      </div>
                     )}
-                    {forecast.model_used && <p>Model: <strong>{forecast.model_used}</strong></p>}
                   </div>
                 )}
               </div>

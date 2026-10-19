@@ -569,24 +569,7 @@ body.dark .gm-progress-bar-bg {
   flex-shrink: 0;
 }
 
-.gm-fao-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 12px;
-  background: rgba(30, 142, 62, 0.12);
-  color: #1e8e3e;
-  border: 1px solid rgba(30, 142, 62, 0.25);
-  letter-spacing: 0.2px;
-}
-body.dark .gm-fao-tag {
-  background: rgba(74, 222, 128, 0.12);
-  color: #4ade80;
-  border-color: rgba(74, 222, 128, 0.25);
-}
+
 
 /* Text Button for Technical Details (Past Design Style) */
 .gm-details-text-btn {
@@ -624,36 +607,176 @@ body.dark .gm-fao-tag {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .gm-spectral-chip {
   background: var(--gm-surface-hover);
   border: 1px solid var(--gm-border);
   border-radius: var(--gm-radius-sm);
-  padding: 8px 10px;
+  padding: 10px 10px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  min-width: 0;
+}
+
+.gm-spectral-chip:hover {
+  border-color: var(--gm-primary-blue);
+  transform: translateY(-1px);
+}
+
+.gm-spectral-chip.active {
+  border-color: var(--gm-primary-blue);
+  background: rgba(26, 115, 232, 0.08);
+  box-shadow: 0 0 0 1px var(--gm-primary-blue);
+}
+
+body.dark .gm-spectral-chip.active {
+  background: rgba(138, 180, 248, 0.12);
+  border-color: #8ab4f8;
+  box-shadow: 0 0 0 1px #8ab4f8;
+}
+
+.gm-spectral-chip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .gm-spectral-name {
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 700;
-  color: var(--gm-text-tertiary);
+  color: var(--gm-text-primary);
   text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.gm-spectral-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .gm-spectral-val {
   font-size: 16px;
   font-weight: 700;
-  color: var(--gm-primary-blue);
+  color: var(--gm-text-primary);
+  line-height: 1.2;
+}
+
+.gm-spectral-status {
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 1px 0;
 }
 
 .gm-spectral-desc {
   font-size: 10px;
   color: var(--gm-text-tertiary);
   line-height: 1.2;
+}
+
+.gm-spectral-explainer-card {
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: var(--gm-surface-hover);
+  border: 1px solid var(--gm-border);
+  border-radius: var(--gm-radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gm-explainer-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 12px;
+  display: inline-block;
+}
+
+.gm-explainer-analogy {
+  border-left: 3px solid var(--gm-primary-blue);
+  padding: 6px 10px;
+  background: var(--gm-surface);
+  border-radius: 0 var(--gm-radius-sm) var(--gm-radius-sm) 0;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--gm-text-secondary);
+  line-height: 1.4;
+}
+
+.gm-explainer-range {
+  font-size: 11px;
+  color: var(--gm-text-tertiary);
+  background: var(--gm-surface);
+  padding: 5px 8px;
+  border-radius: var(--gm-radius-sm);
+  border: 1px dashed var(--gm-border);
+}
+
+/* Land Cover Legend Card */
+.gm-landcover-legend-card {
+  padding: 12px 18px;
+  background: var(--gm-surface-hover);
+  border-bottom: 1px solid var(--gm-divider);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gm-legend-help-btn {
+  background: none;
+  border: none;
+  color: var(--gm-primary-blue);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+.gm-legend-help-btn:hover {
+  background: rgba(26, 115, 232, 0.08);
+}
+
+.gm-legend-explainer-box {
+  background: var(--gm-surface);
+  border: 1px solid var(--gm-border);
+  border-radius: var(--gm-radius-sm);
+  padding: 8px 10px;
+  font-size: 11.5px;
+  color: var(--gm-text-secondary);
+  line-height: 1.4;
+}
+
+
+
+.gm-legend-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--gm-text-secondary);
+}
+
+.gm-legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
 }
 
 /* Toggle Drawer Expand / Collapse Tab Button (Like Google Maps side tab) */
