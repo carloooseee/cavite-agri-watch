@@ -48,28 +48,28 @@ import {
 } from 'lucide-react';
 
 const CITIES = [
-  { name: 'Alfonso', color: '#8D6E63' },                  // Warm Umber
-  { name: 'Amadeo', color: '#BCAAA4' },                   // Coffee Cream
-  { name: 'Bacoor', color: '#4DB6AC' },                   // Seafoam Teal
-  { name: 'Carmona', color: '#90A4AE' },                  // Slate Mineral
-  { name: 'Cavite City', color: '#64B5F6' },              // Coastal Azure
-  { name: 'Dasmariñas', color: '#F06292' },               // Rose Carmine
-  { name: 'General Emilio Aguinaldo', color: '#81C784' }, // Mountain Green
-  { name: 'General Trias', color: '#FFD54F' },            // Golden Straw
-  { name: 'Imus', color: '#4FC3F7' },                     // Sky Cyan
-  { name: 'Indang', color: '#26A69A' },                   // Emerald Sage
-  { name: 'Kawit', color: '#29B6F6' },                    // Bay Blue
-  { name: 'Magallanes', color: '#FF8A65' },               // Terracotta Coral
-  { name: 'Maragondon', color: '#9CCC65' },               // Forest Olive
-  { name: 'Mendez', color: '#DCE775' },                   // Pear Lime
-  { name: 'Naic', color: '#7986CB' },                     // Periwinkle Indigo
-  { name: 'Noveleta', color: '#FFB74D' },                 // Apricot Sun
-  { name: 'Rosario', color: '#E57373' },                  // Coral Red
-  { name: 'Silang', color: '#BA68C8' },                   // Lavender Violet
-  { name: 'Tagaytay', color: '#FFB300' },                 // Ridge Amber
-  { name: 'Tanza', color: '#9575CD' },                    // Soft Violet
-  { name: 'Ternate', color: '#4DD0E1' },                  // Marine Aqua
-  { name: 'Trece Martires', color: '#B39DDB' }            // Lilac Purple
+  { name: 'Alfonso' },
+  { name: 'Amadeo' },
+  { name: 'Bacoor' },
+  { name: 'Carmona' },
+  { name: 'Cavite City' },
+  { name: 'Dasmariñas' },
+  { name: 'General Emilio Aguinaldo' },
+  { name: 'General Trias' },
+  { name: 'Imus' },
+  { name: 'Indang' },
+  { name: 'Kawit' },
+  { name: 'Magallanes' },
+  { name: 'Maragondon' },
+  { name: 'Mendez' },
+  { name: 'Naic' },
+  { name: 'Noveleta' },
+  { name: 'Rosario' },
+  { name: 'Silang' },
+  { name: 'Tagaytay' },
+  { name: 'Tanza' },
+  { name: 'Ternate' },
+  { name: 'Trece Martires' }
 ];
 
 const App: React.FC = () => {
@@ -78,6 +78,7 @@ const App: React.FC = () => {
   const socket = useRef<WebSocket | null>(null);
   const ndviLayerRef = useRef<TileLayer<XYZ> | null>(null);
   const philippinesLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const caviteLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cityDataMapRef = useRef<Map<string, { geom: any; geomGeoJson: any }>>(new Map());
   const locationLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
@@ -124,6 +125,7 @@ const App: React.FC = () => {
   useEffect(() => {
     document.body.className = theme;
     philippinesLayerRef.current?.changed();
+    caviteLayerRef.current?.changed();
   }, [theme]);
 
   const translations = {
@@ -553,28 +555,38 @@ const App: React.FC = () => {
     philippinesLayerRef.current = philippinesLayer as any;
 
     // 2. High-performance single consolidated VectorLayer for all 22 Cavite municipalities
+    // Styled in a refined slate palette that harmonizes with the greyed-out Philippines backdrop
+    // but stands out clearly with a richer solid fill, bold crisp boundary, and prominent municipal labels
     const caviteSource = new VectorSource();
     const styleCache = new Map<string, Style>();
 
     const getCityStyle = (feature: any) => {
       const cityName = feature.get('name') || '';
-      const color = feature.get('color') || '#8D6E63';
       const displayName = feature.get('displayName') || cityName;
+      const isDark = document.body.classList.contains('dark');
+      const cacheKey = `${cityName}_${isDark ? 'dark' : 'light'}`;
 
-      let cached = styleCache.get(cityName);
+      let cached = styleCache.get(cacheKey);
       if (!cached) {
         cached = new Style({
-          fill: new Fill({ color }),
-          stroke: new Stroke({ color: '#1E293B', width: 1.8 }),
+          // Noticeably richer, elevated slate fill compared to the faint 0.45 unavailable background
+          fill: new Fill({
+            color: isDark ? 'rgba(51, 65, 85, 0.78)' : 'rgba(148, 163, 184, 0.70)',
+          }),
+          // Sharp, high-contrast border stroke defining each active municipality
+          stroke: new Stroke({
+            color: isDark ? '#94A3B8' : '#334155',
+            width: 1.8,
+          }),
           text: new Text({
             text: displayName,
-            font: 'bold 15px Helvetica, Arial, sans-serif',
-            fill: new Fill({ color: '#0F172A' }),
-            stroke: new Stroke({ color: '#FFFFFF', width: 3.5 }),
+            font: 'bold 14px Helvetica, Arial, sans-serif',
+            fill: new Fill({ color: isDark ? '#F8FAFC' : '#0F172A' }),
+            stroke: new Stroke({ color: isDark ? '#0F172A' : '#FFFFFF', width: 3.5 }),
             overflow: true,
           }),
         });
-        styleCache.set(cityName, cached);
+        styleCache.set(cacheKey, cached);
       }
       return cached;
     };
@@ -585,6 +597,7 @@ const App: React.FC = () => {
       properties: { isSelectable: true },
       style: getCityStyle,
     });
+    caviteLayerRef.current = caviteLayer;
 
     mapRef.current = new OLMap({
       target: mapElement.current,
@@ -704,7 +717,6 @@ const App: React.FC = () => {
               displayName = "Cavite\nCity";
             }
             feat.set('name', city.name);
-            feat.set('color', city.color);
             feat.set('displayName', displayName);
             return feat;
           }
@@ -723,6 +735,7 @@ const App: React.FC = () => {
     return () => {
       if (mapRef.current) mapRef.current.setTarget(undefined);
       philippinesLayerRef.current = null;
+      caviteLayerRef.current = null;
       socket.current?.close();
     };
   }, []);
@@ -1330,7 +1343,7 @@ const App: React.FC = () => {
                   className={`gm-dropdown-item ${activeZone === c.name ? 'active' : ''}`}
                   onClick={() => handleCitySelectChange(c.name)}
                 >
-                  <MapPin size={16} color={c.color} />
+                  <MapPin size={16} color="var(--gm-primary-blue)" />
                   <span>{c.name}</span>
                   <span className="gm-dropdown-item-sub">Municipality</span>
                 </div>
@@ -1469,7 +1482,7 @@ const App: React.FC = () => {
                       width: '12px', 
                       height: '12px', 
                       borderRadius: '50%', 
-                      backgroundColor: CITIES.find(c => c.name === activeZone)?.color || 'var(--gm-primary-blue)',
+                      backgroundColor: 'var(--gm-primary-blue)',
                       display: 'inline-block',
                       flexShrink: 0
                     }} 
@@ -1799,7 +1812,7 @@ const App: React.FC = () => {
             {activeZone !== "Cavite Province" && (
               <span 
                 className="gm-mobile-color-dot"
-                style={{ backgroundColor: CITIES.find(c => c.name === activeZone)?.color || 'var(--gm-primary-blue)' }} 
+                style={{ backgroundColor: 'var(--gm-primary-blue)' }} 
               />
             )}
             <span>{activeZone}</span>
