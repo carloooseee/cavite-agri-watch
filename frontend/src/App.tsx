@@ -145,9 +145,12 @@ const App: React.FC = () => {
       forecast_title: "AI Forecast (30-Day)",
       value: "Value",
       trend: "Trend",
-      routines: "Intervention Routines",
-      inputs: "Recommended Inputs",
-      avoid: "What to Avoid",
+      routines: "Field Action Routines (FAO Guidelines)",
+      inputs: "Recommended Inputs & Soil Care",
+      avoid: "What to Avoid (Critical Mistakes)",
+      fao_badge: "FAO Good Agricultural Practices",
+      fao_ref: "Standard: FAO & PhilRice Agronomic Guidelines",
+      field_signs: "Observed Field Condition",
       edu: "Educational Info",
       before: "BEFORE: Raw Image",
       after: "AFTER: Masked & Clipped",
@@ -180,9 +183,12 @@ const App: React.FC = () => {
       forecast_title: "Pagtataya ng AI (30-Araw)",
       value: "Halaga",
       trend: "Takbo",
-      routines: "Mga Routine na Pamamagitan",
-      inputs: "Inirerekomendang Input",
-      avoid: "Mga Dapat Iwasan",
+      routines: "Mga Hakbang sa Bukid (Gabay ng FAO)",
+      inputs: "Inirerekomendang Pataba at Gamot sa Lupa",
+      avoid: "Mga Dapat Iwasan (Kritikal na Paalala)",
+      fao_badge: "FAO Good Agricultural Practices",
+      fao_ref: "Pamantayan: FAO at PhilRice Gabay sa Pagsasaka",
+      field_signs: "Kondisyon sa Bukid",
       edu: "Impormasyong Pang-edukasyon",
       before: "BAGO: Hilaw na Imahe",
       after: "PAGKATAPOS: Masked at Clipped",
@@ -194,7 +200,7 @@ const App: React.FC = () => {
       spectral_title: "Spectral Metrics",
       stress_levels: {
         none: "Walang Stress",
-        mild: "Mild na Stress",
+        mild: "Bahagyang Stress",
         mod: "Katamtamang Stress",
         sev: "Malalang Stress"
       }
@@ -507,9 +513,9 @@ const App: React.FC = () => {
     };
 
     let intY = 110;
-    intY = drawIntervention("RECOMMENDED ACTIONS", panelInfo.routines, intY);
-    intY = drawIntervention("NUTRITION & INPUTS", panelInfo.inputs, intY);
-    drawIntervention("AVOIDANCE LIST", panelInfo.avoid, intY);
+    intY = drawIntervention("FIELD ACTION ROUTINES (FAO GOOD AGRICULTURAL PRACTICES)", panelInfo.routines, intY);
+    intY = drawIntervention("RECOMMENDED NUTRITION & SOIL INPUTS", panelInfo.inputs, intY);
+    drawIntervention("CRITICAL ACTIONS TO AVOID", panelInfo.avoid, intY);
 
     // Footer Page 2
     doc.setFontSize(8);
@@ -878,122 +884,311 @@ const App: React.FC = () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let baseInfo: any;
 
+    const normalizedStatus = (status || "").toLowerCase();
+    const isOptimal = normalizedStatus.includes("no stress") || normalizedStatus.includes("optimal") || normalizedStatus.includes("good health");
+    const isMild = normalizedStatus.includes("mild");
+    const isModerate = normalizedStatus.includes("moderate") || normalizedStatus.includes("warning");
+    const isSevere = normalizedStatus.includes("severe") || normalizedStatus.includes("damage");
+
     if (lang === 'EN') {
-      switch(status) {
-        case "No Stress":
-          baseInfo = {
-            routines: {
-              desc: "Current crop health is stable. Focus on optimization and monitoring.",
-              bullets: ["Maintain irrigation schedule", "Conduct weekly scouting", "Keep drainage clear"]
-            },
-            inputs: {
-              desc: "Standard nutrition plan is sufficient for current growth stage.",
-              bullets: ["Balanced N-P-K fertilizer", "Organic bio-stimulants", "Trace mineral spray"]
-            },
-            avoid: "Sudden nitrogen spikes and soil compaction.",
-            educational: "High photosynthesis efficiency observed.",
-            chart: trendData
-          };
-          break;
-        case "Mild Stress":
-          baseInfo = {
-            routines: {
-              desc: "Plants are showing early signs of environmental stress. Minor adjustment needed.",
-              bullets: ["Adjust irrigation timing", "Apply nutrient recovery spray", "Check for early pest signs"]
-            },
-            inputs: {
-              desc: "Focus on recovery and resilience building inputs.",
-              bullets: ["Nitrogen-rich foliar sprays", "Potassium for water retention", "Organic agents"]
-            },
-            avoid: "Over-fertilization during stress periods.",
-            educational: "Early abiotic stress detected in cellular data.",
-            chart: trendData
-          };
-          break;
-        case "Moderate Stress":
-          baseInfo = {
-            routines: {
-              desc: "Stress levels are significant. Remediation required to prevent loss.",
-              bullets: ["Increase water frequency", "Soil moisture check", "Disease assessment"]
-            },
-            inputs: {
-              desc: "High-impact fast-acting nutrients.",
-              bullets: ["Liquid Zinc/Iron cocktail", "Magnesium supplements", "Soil pH adjusters"]
-            },
-            avoid: "Planting new crops; stop chemical pesticides.",
-            educational: "Low chlorophyll levels indicate metabolic failure.",
-            chart: trendData
-          };
-          break;
-        case "Severe Stress":
-          baseInfo = {
-            routines: {
-              desc: "Critical damage detected. Emergency intervention necessary.",
-              bullets: ["Emergency irrigation", "Deep soil aeration", "Crop salvation protocols"]
-            },
-            inputs: {
-              desc: "Intensive recovery nutrients.",
-              bullets: ["High-dose amino acids", "Seaweed extract", "Chelated minerals"]
-            },
-            avoid: "All mechanical operations.",
-            educational: "Severe moisture deficit in LSWI data.",
-            chart: trendData
-          };
-          break;
-        default:
-          baseInfo = {
-            routines: { desc: "Select a region to see routines.", bullets: [] },
-            inputs: { desc: "Select a region to see inputs.", bullets: [] },
-            avoid: "Select a region to see avoidance list.",
-            educational: "Select a region to see educational info.",
-            chart: []
-          };
+      if (isOptimal) {
+        baseInfo = {
+          diagnosis: "Lush green canopy and healthy vegetative vigor. Crop photosynthesis and water absorption are running at optimal rates.",
+          routines: {
+            desc: "Current crop health is stable and thriving. Follow standard maintenance and preventive field scouting:",
+            bullets: [
+              "Morning Irrigation (5:00 - 8:00 AM): Maintain regular 3–5 day schedule to minimize daytime evaporation.",
+              "Drainage Canal Check: Keep furrows and drainage clear to avoid water stagnation and root suffocation.",
+              "Weekly Border Scouting: Walk field perimeter weekly to catch early weed and pest ingress before it spreads.",
+              "Mulch Top-up: Maintain a 3–5 cm layer of rice straw or dried grass to protect topsoil from baking in the sun."
+            ]
+          },
+          inputs: {
+            desc: "Standard maintenance nutrition according to current crop growth stage (FAO Good Agricultural Practices):",
+            bullets: [
+              "Balanced Complete Fertilizer (14-14-14 N-P-K) or well-decomposed animal manure.",
+              "Beneficial Microorganisms (EM-1 or Trichoderma) to enhance root zone nutrient availability.",
+              "Maintenance Foliar Spray (Zinc + Magnesium) every 14 days to sustain rich green chlorophyll."
+            ]
+          },
+          avoid: {
+            desc: "Excessive synthetic Nitrogen and water stagnation:",
+            bullets: [
+              "Excessive synthetic Nitrogen application (causes weak, watery stems prone to lodging and insect attack).",
+              "Water stagnation lasting over 24 hours in flat furrows (leads to anaerobic root asphyxiation)."
+            ]
+          },
+          educational: "High photosynthesis efficiency observed across satellite multispectral bands (NDVI > 0.60).",
+          faoRef: "FAO Good Agricultural Practices (GAP) — Section 4: Soil Management & Crop Nutrition",
+          chart: trendData
+        };
+      } else if (isMild) {
+        baseInfo = {
+          diagnosis: "Early crop fatigue: leaves may show slight curling or dullness under afternoon heat, but root systems are sound and fully recoverable.",
+          routines: {
+            desc: "Early environmental or moisture stress detected. Follow these field actions to stop vigor decline:",
+            bullets: [
+              "Shift Irrigation Hours: Water only in early morning (5:00 - 8:00 AM) or late afternoon to cut evaporation by 40%.",
+              "Soil Moisture Squeeze Test: Dig 10 cm deep; if soil crumbles without forming a loose ball, irrigate immediately.",
+              "Root-Zone Mulching: Spread a 5–7 cm layer of rice straw, rice hulls, or dry banana leaves around plant bases to lock in soil moisture.",
+              "Clear Weeds within 30 cm: Weeds consume up to half of available moisture and fertilizer—hand-weed around crop stems immediately."
+            ]
+          },
+          inputs: {
+            desc: "Nutrient inputs aimed at cellular water retention and stress recovery (FAO/PhilRice standards):",
+            bullets: [
+              "Potassium Boost (Muriate of Potash / 0-0-60 or clean wood ash): Regulates leaf stomata to reduce water transpiration.",
+              "Gentle Foliar Bio-stimulant: Spray diluted seaweed extract or fish amino acid (FAA) at dawn for quick foliar uptake.",
+              "Organic Vermicompost: Apply 1–2 handfuls per hill around root base to improve soil water-holding capacity."
+            ]
+          },
+          avoid: {
+            desc: "Mistakes that aggravate early stress:",
+            bullets: [
+              "NEVER apply concentrated granular Urea (46-0-0) to dry soil (burns thirsty roots and causes salt scorch).",
+              "DO NOT spray foliar nutrients or pesticides during peak noon sun (10:00 AM – 3:00 PM) as droplets scorch leaves.",
+              "Avoid deep hoeing or cultivation near root crowns that shears delicate water-seeking feeder roots."
+            ]
+          },
+          educational: "Early abiotic water/heat stress detected in canopy spectral reflectance (NDVI 0.45–0.58).",
+          faoRef: "FAO Good Agricultural Practices (GAP) — Section 5: Water Management & Abiotic Stress Mitigation",
+          chart: trendData
+        };
+      } else if (isModerate) {
+        baseInfo = {
+          diagnosis: "Noticeable vegetation decline: lower leaves yellowing (chlorosis), wilting past midday, and stunted growth needing urgent field intervention.",
+          routines: {
+            desc: "Active crop stress requires immediate soil, water, and canopy intervention:",
+            bullets: [
+              "Deep Soak Irrigation: Irrigate slowly to allow water to penetrate 15–20 cm deep into root zones without eroding dry topsoil.",
+              "Soil Aeration & Crust Breaking: Lightly hoe crusted topsoil between rows to allow air and water to reach suffocating roots.",
+              "Daily Pest Inspection: Stressed plants emit distress volatiles that attract aphids, armyworms, and stem borers—check undersides of leaves daily.",
+              "Temporary Shade Protection: For vegetables and nurseries, erect temporary 30–50% shade netting to lower leaf temperatures."
+            ]
+          },
+          inputs: {
+            desc: "Fast-acting restorative nutrients to bypass damaged or dormant root uptake (FAO Guidelines):",
+            bullets: [
+              "Chelated Zinc & Magnesium Foliar Spray: Applied at dawn to directly restart impaired chlorophyll synthesis.",
+              "Humic / Fulvic Acid Soil Drench: Dilute 1:1000 in irrigation water to stimulate root hair re-growth and unlock soil phosphorus.",
+              "Bio-protective Inoculant (Trichoderma): Protects vulnerable, stressed roots against soil-borne damping-off and rot pathogens."
+            ]
+          },
+          avoid: {
+            desc: "Critical actions to avoid during moderate stress:",
+            bullets: [
+              "DO NOT apply chemical pesticides or systemic herbicides (weakened crops cannot metabolize toxins and will die).",
+              "DO NOT sow new seedlings or transplant until soil moisture stabilizes.",
+              "Avoid alternating between parched dry soil and sudden heavy flooding (causes root shock and fruit splitting)."
+            ]
+          },
+          educational: "Significant drop in leaf chlorophyll and canopy moisture detected (NDVI 0.30–0.45, negative LSWI anomaly).",
+          faoRef: "FAO Good Agricultural Practices (GAP) — Section 6: Integrated Plant Nutrition & Stress Recovery",
+          chart: trendData
+        };
+      } else if (isSevere) {
+        baseInfo = {
+          diagnosis: "Critical crop distress: severe wilting, leaf tip scorch, and risk of permanent yield loss within 48-72 hours if unaddressed.",
+          routines: {
+            desc: "Emergency salvation protocols to prevent total harvest loss:",
+            bullets: [
+              "Low-Volume Basin/Drip Watering: Deliver gentle, targeted watering directly to root crowns; water slowly so it does not run off hardened soil.",
+              "Emergency Pruning of Dead Foliage: Cut off dead and severely scorched lower leaves to reduce transpirational water burden on surviving plant tissue.",
+              "Micro-Basin Contour Trenching: Shape small soil rings/trenches around plants to capture every drop of water.",
+              "Notify Agricultural Officer (OPA Cavite): Report crop stress to the Municipal / Provincial Agricultural Office for drought support and irrigation assistance."
+            ]
+          },
+          inputs: {
+            desc: "Emergency protective treatments to keep core plant tissue alive (FAO Guidelines):",
+            bullets: [
+              "Kaolin Clay / Natural Anti-transpirant Spray: Shields foliage from intense solar radiation and lowers leaf surface temperature by 3–5°C.",
+              "Liquid Seaweed Extract + Amino Acids: Drench root base with mild biological extract to support cellular osmoprotection.",
+              "Thick Mulch Blanket (10 cm): Completely cover bed surfaces with rice straw, dry leaves, or husks to trap subterranean moisture."
+            ]
+          },
+          avoid: {
+            desc: "Catastrophic errors to strictly avoid:",
+            bullets: [
+              "STRICTLY FORBIDDEN: Chemical fertilizers (Urea, Muriate of Potash, 14-14-14)—fertilizer salts in bone-dry soil will immediately dehydrate and kill remaining roots via reverse osmosis.",
+              "DO NOT flood dry, baked clay soils rapidly (causes root drowning and collar rot).",
+              "Avoid running heavy machinery or foot traffic across root zones (compacts depleted soil pores permanently)."
+            ]
+          },
+          educational: "Critical moisture deficit and cellular breakdown detected across satellite bands (NDVI < 0.30).",
+          faoRef: "FAO Good Agricultural Practices (GAP) — Section 7: Disaster Risk Management & Emergency Crop Salvation",
+          chart: trendData
+        };
+      } else {
+        baseInfo = {
+          diagnosis: "Select an agricultural municipality to inspect crop health.",
+          routines: { desc: "Select a region to see field action routines.", bullets: [] },
+          inputs: { desc: "Select a region to see recommended inputs.", bullets: [] },
+          avoid: { desc: "Select a region to see critical avoidance list.", bullets: [] },
+          educational: "Select a region to view satellite indices.",
+          faoRef: "FAO Good Agricultural Practices (GAP)",
+          chart: []
+        };
       }
     } else {
-      // Tagalog Translations
-      switch(status) {
-        case "Good Health":
-          baseInfo = {
-            routines: {
-              desc: "Maayos ang kalusugan ng pananim. Tumutok sa pag-optimize at pagsubaybay.",
-              bullets: [
-                "Panatilihin ang iskedyul ng patubig",
-                "Magsagawa ng lingguhang pagmamasid",
-                "Panatilihing malinis ang daluyan ng tubig"
-              ]
-            },
-            inputs: {
-              desc: "Sapat ang karaniwang plano ng nutrisyon para sa kasalukuyang yugto.",
-              bullets: [
-                "Balanseng abono (N-P-K)",
-                "Organikong bio-stimulant",
-                "Trace mineral spray"
-              ]
-            },
-            avoid: "Biglaang pagtaas ng nitrogen at pagsisiksik ng lupa.",
-            educational: "Mataas na kahusayan sa photosynthesis ang naobserbahan.",
-            chart: trendData
-          };
-          break;
-        default:
-          baseInfo = {
-            routines: { desc: "Pumili ng rehiyon para sa mga routine.", bullets: [] },
-            inputs: { desc: "Pumili ng rehiyon para sa mga input.", bullets: [] },
-            avoid: "Pumili ng rehiyon para sa mga dapat iwasan.",
-            educational: "Pumili ng rehiyon para sa mga impormasyon.",
-            chart: []
-          };
+      // Filipino / Tagalog Translations
+      if (isOptimal) {
+        baseInfo = {
+          diagnosis: "Luntiang mga dahon at masiglang paglaki. Ang pagsipsip ng tubig at sustansya ng pananim ay nasa pinakamagandang antas.",
+          routines: {
+            desc: "Maayos at malusog ang pananim. Panatilihin ang karaniwang pangangalaga at lingguhang pagmamasid sa bukid:",
+            bullets: [
+              "Patubig sa Umaga (5:00 - 8:00 AM): Panatilihin ang 3–5 araw na iskedyul ng patubig upang mabawasan ang pagsingaw sa init ng araw.",
+              "Linisin ang Kanal ng Tubig: Panatilihing malinis ang mga daluyan upang hindi magtubig-baha at mababad ang mga ugat.",
+              "Lingguhang Pag-ikot sa Paligid ng Bukid: Tingnan ang gilid ng palayan/taniman upang maagapan ang damo at peste.",
+              "Pagpapanatili ng Multsa: Maglagay ng 3–5 cm na dayami o tuyong damo sa ibabaw ng lupa upang hindi matuyo sa init."
+            ]
+          },
+          inputs: {
+            desc: "Karaniwang abono at nutrisyon ayon sa yugto ng tanim (Alinsunod sa FAO Good Agricultural Practices):",
+            bullets: [
+              "Balanseng Kumpletong Abono (14-14-14 N-P-K) o nabulok na dumi ng hayop (organic compost).",
+              "Kapaki-pakinabang na Microorganisms (EM-1 o Trichoderma) upang mapabilis ang pagkuha ng sustansya.",
+              "Maintenance Foliar Spray (Zinc + Magnesium) tuwing 14 araw upang mapanatili ang berdeng kloropil."
+            ]
+          },
+          avoid: {
+            desc: "Mga dapat iwasan sa malusog na tanim:",
+            bullets: [
+              "Labis na synthetic Nitrogen (nagpapadapa sa uhay ng palay at umaakit ng peste).",
+              "Pagkababad ng tubig nang lampas sa 24 oras sa mga tudling (nagdudulot ng pagkabulok ng ugat)."
+            ]
+          },
+          educational: "Mataas na kahusayan sa photosynthesis ang naitala sa satellite (NDVI > 0.60).",
+          faoRef: "FAO Good Agricultural Practices (GAP) — Seksiyon 4: Pangangalaga sa Lupa at Nutrisyon",
+          chart: trendData
+        };
+      } else if (isMild) {
+        baseInfo = {
+          diagnosis: "Maagang pagkapagod ng pananim: bahagyang nangungulubot o maputla ang mga dahon kapag matindi ang sikat ng araw, ngunit buo at kayang-kayang bawiin ang sigla ng mga ugat.",
+          routines: {
+            desc: "May maagang senyales ng pagkaubos ng tubig at init. Sundin ang mga hakbang na ito upang hindi tuluyang bumaba ang ani:",
+            bullets: [
+              "Ibahin ang Oras ng Patubig: Magpatubig lamang sa madaling-araw (5:00 - 8:00 AM) o bandang hapon upang makatipid ng 40% sa tubig.",
+              "Pagsubok sa Basa ng Lupa: Humukay ng 10 cm; kapag nadurog agad ang lupa sa kamay, tuyo na ang root zone at kailangang diligan.",
+              "Maglagay ng Dayami sa Puno (Mulching): Takpan ng 5–7 cm na dayami, ipa, o tuyong dahon ng saging ang paligid ng puno upang kulungin ang lamig.",
+              "Hawanin ang Damo sa Loob ng 30 cm: Agad bunutin ang mga damo sa paligid ng puno dahil inaagaw nito ang tubig at sustansya."
+            ]
+          },
+          inputs: {
+            desc: "Mga input para sa pagbawi ng tubig at resistensya ng halaman (Pamantayang FAO/PhilRice):",
+            bullets: [
+              "Dagdag na Potassium (Muriate of Potash / 0-0-60 o malinis na abo ng kahoy): Tumutulong sa dahon na magbawas ng pagsingaw ng tubig.",
+              "Banayad na Foliar Bio-stimulant: Mag-spray ng diluted seaweed extract o fish amino acid (FAA) tuwing madaling-araw.",
+              "Organikong Vermicompost: Maglagay ng 1–2 dakot bawat puno upang mapahusay ang pagpigil ng tubig sa lupa."
+            ]
+          },
+          avoid: {
+            desc: "Mga mapanganib na pagkakamali sa may stress na tanim:",
+            bullets: [
+              "HUWAG maglagay ng concentrated Urea (46-0-0) sa tigang na lupa (sinusunog nito ang uhaw na mga ugat).",
+              "HUWAG mag-spray ng abono o pestisidyo sa kasagsagan ng tirik na araw (10:00 AM – 3:00 PM) dahil napapaso ang dahon.",
+              "Iwasan ang malalim na pag-araro malapit sa puno na nakakaputol sa maliliit na ugat."
+            ]
+          },
+          educational: "Maagang kakulangan sa tubig at init ang naobserbahan sa satellite (NDVI 0.45–0.58).",
+          faoRef: "FAO Good Agricultural Practices (GAP) — Seksiyon 5: Pangangasiwa sa Tubig at Stress sa Init",
+          chart: trendData
+        };
+      } else if (isModerate) {
+        baseInfo = {
+          diagnosis: "Kapansin-pansing pagbagsak ng sigla: naninilaw ang mga ibabang dahon (chlorosis) at nalalanta kahit bandang tanghali pa lamang. Kailangan ng mabilisang aksyon.",
+          routines: {
+            desc: "Aktibong stress sa halaman; kailangan ng agarang interbensyon sa lupa, tubig, at dahon:",
+            bullets: [
+              "Mabagal at Malalim na Pagpapatubig: Dahan-dahang patubigan ang lupa upang makapasok ang tubig hanggang 15–20 cm sa ugat.",
+              "Paghukay at Pagpapahinga ng Lupa: Bahagyang bungkalin ang nanigas na ibabaw ng lupa upang makahinga ang mga ugat.",
+              "Araw-araw na Pagsusuri sa Peste: Tignan ang ilalim ng dahon araw-araw para sa aphids, armyworms, at uod na umaatake sa mahihinang halaman.",
+              "Pansamantalang Lilim: Para sa gulay at seedling, maglagay ng 30–50% shade netting upang maibsan ang init ng tanghali."
+            ]
+          },
+          inputs: {
+            desc: "Mabisang nutrisyon upang maipagpatuloy ang paglaki kahit mahina ang ugat (Gabay ng FAO):",
+            bullets: [
+              "Chelated Zinc at Magnesium Foliar Spray: I-spray sa madaling-araw upang direktang maibalik ang berdeng kulay ng dahon.",
+              "Humic / Fulvic Acid sa Tubig: Ihalo (1:1000) sa pandilig upang pasiglahin ang bagong ugat at buksan ang sustansya sa lupa.",
+              "Bio-fungicide (Trichoderma): Proteksyon sa mahihinang ugat laban sa fungi at pagkabulok."
+            ]
+          },
+          avoid: {
+            desc: "Mga mahigpit na ipinagbabawal sa katamtamang stress:",
+            bullets: [
+              "HUWAG mag-spray ng kemikal na pamatay-damo o mabagsik na pestisidyo (hindi kakayanin ng mahinang halaman at ikamamatay nito).",
+              "HUWAG maglipat o magtanim ng bagong punla hangga't hindi bumabalik ang tamang moisture ng lupa.",
+              "Iwasan ang salit-salit na tuyong-tuyo at biglang binabahang lupa (nagdudulot ng root shock at pagputok ng bunga)."
+            ]
+          },
+          educational: "Bagsak na kloropil at pagkaubos ng tubig sa dahon ang naitala sa satellite (NDVI 0.30–0.45).",
+          faoRef: "FAO Good Agricultural Practices (GAP) — Seksiyon 6: Nutrisyon at Pagbawi ng Pananim",
+          chart: trendData
+        };
+      } else if (isSevere) {
+        baseInfo = {
+          diagnosis: "Kritikal na pinsala sa pananim: matinding pagkalanta, sunog na dulo ng dahon, at panganib ng kabuuang pagkalugi sa loob ng 48–72 oras.",
+          routines: {
+            desc: "Protokol sa emergency na pagsagip sa taniman upang maiwasan ang tuluyang pagkasira ng ani:",
+            bullets: [
+              "Dahan-dahang Pagdilig sa Puno: Magbuhos ng kaunting tubig nang diretso sa ugat; huwag hayaang umagos lang sa tigang na lupa.",
+              "Pagtabas ng mga Patay na Dahon: Putulin ang mga sunog at tuyong dahon upang hindi maubos ang natitirang tubig ng halaman.",
+              "Gumawa ng Maliliit na Kanal sa Paligid: Gumawa ng munting hukay sa paligid ng puno upang masalo ang bawat patak ng tubig.",
+              "Makipag-ugnayan sa Tanggapan ng Agrikultura (OPA Cavite): Ipaalam sa Municipal o Provincial Agriculturist para sa tulong sa patubig at binhi."
+            ]
+          },
+          inputs: {
+            desc: "Pang-emergency na proteksyon upang manatiling buhay ang ubod ng halaman (Gabay ng FAO):",
+            bullets: [
+              "Kaolin Clay / Natural Anti-transpirant Spray: Pinipigilan ang labis na init sa dahon at binabawasan ang temperatura nito ng 3–5°C.",
+              "Liquid Seaweed Extract at Amino Acids: Idilig sa puno upang tulungan ang mga selyula ng halaman laban sa matinding stress.",
+              "Makapal na Sapin ng Dayami (10 cm): Takpan ang buong taniman ng dayami o ipa upang maiwasan ang tuluyang pagkatuyo ng lupa."
+            ]
+          },
+          avoid: {
+            desc: "Kritikal na ipinagbabawal sa malalang stress:",
+            bullets: [
+              "MAHIGPIT NA IPINAGBABAWAL: Mga kemikal na abono (Urea, Muriate of Potash, 14-14-14)—ang asin nito sa tuyong lupa ay agad papatay sa nalalabing ugat.",
+              "HUWAG biglaang bahain ang tuyong nanigas na lupa (nagiging sanhi ng pagkalunod ng ugat at collar rot).",
+              "Iwasan ang pagdaan ng mabibigat na makinarya o yabag sa paligid ng ugat."
+            ]
+          },
+          educational: "Kritikal na kawalan ng tubig at pagkasira ng selyula ang naitala sa satellite (NDVI < 0.30).",
+          faoRef: "FAO Good Agricultural Practices (GAP) — Seksiyon 7: Emergency Management sa Sakuna sa Pananim",
+          chart: trendData
+        };
+      } else {
+        baseInfo = {
+          diagnosis: "Pumili ng bayan o lungsod upang makita ang kalagayan ng pananim.",
+          routines: { desc: "Pumili ng rehiyon para sa mga hakbang sa bukid.", bullets: [] },
+          inputs: { desc: "Pumili ng rehiyon para sa mga inirerekumendang input.", bullets: [] },
+          avoid: { desc: "Pumili ng rehiyon para sa mga dapat iwasan.", bullets: [] },
+          educational: "Pumili ng rehiyon para sa impormasyon.",
+          faoRef: "FAO Good Agricultural Practices (GAP)",
+          chart: []
+        };
       }
     }
 
     if (forecastObj) {
-      if (forecastObj.meaning) {
+      if (forecastObj.diagnosis && lang === 'EN') {
+        baseInfo.diagnosis = forecastObj.diagnosis;
+      }
+      if (forecastObj.meaning && lang === 'EN') {
         baseInfo.routines.desc = forecastObj.meaning;
       }
-      if (forecastObj.routines && forecastObj.routines.length > 0) {
-        baseInfo.routines.bullets = forecastObj.routines;
-      } else if (forecastObj.expert_advice) {
-        baseInfo.routines.bullets = [forecastObj.expert_advice];
+      if (Array.isArray(forecastObj.fao_routines) && forecastObj.fao_routines.length > 0 && lang === 'EN') {
+        baseInfo.routines.bullets = forecastObj.fao_routines;
+      }
+      if (Array.isArray(forecastObj.fao_inputs) && forecastObj.fao_inputs.length > 0 && lang === 'EN') {
+        baseInfo.inputs.bullets = forecastObj.fao_inputs;
+      }
+      if (Array.isArray(forecastObj.fao_avoid) && forecastObj.fao_avoid.length > 0 && lang === 'EN') {
+        baseInfo.avoid.bullets = forecastObj.fao_avoid;
+      }
+      if (forecastObj.fao_reference) {
+        baseInfo.faoRef = forecastObj.fao_reference;
       }
     }
 
@@ -1631,9 +1826,14 @@ const App: React.FC = () => {
           {/* AI 30-Day Predictive Outlook Card */}
           {forecast && (
             <div className="gm-section-card">
-              <div className="gm-section-title">
-                <Sparkles size={16} color="var(--gm-primary-blue)" />
-                <span>{t.forecast_title}</span>
+              <div className="gm-section-title" style={{ justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={16} color="var(--gm-primary-blue)" />
+                  <span>{t.forecast_title}</span>
+                </div>
+                <span className="gm-fao-tag">
+                  ✓ {t.fao_badge}
+                </span>
               </div>
               <p style={{ fontSize: '13px', color: 'var(--gm-text-secondary)' }}>
                 Target: <strong>{forecast.city || activeZone}</strong>
@@ -1642,6 +1842,20 @@ const App: React.FC = () => {
               <div className="gm-quote-box">
                 "{forecast.meaning}"
               </div>
+
+              {panelInfo.diagnosis && (
+                <div style={{ 
+                  fontSize: '12.5px', 
+                  color: 'var(--gm-text-secondary)', 
+                  lineHeight: '1.45', 
+                  padding: '8px 10px', 
+                  background: 'var(--gm-surface-hover)', 
+                  borderRadius: '6px',
+                  border: '1px solid var(--gm-border)'
+                }}>
+                  <strong style={{ color: 'var(--gm-text-primary)' }}>{t.field_signs}:</strong> {panelInfo.diagnosis}
+                </div>
+              )}
 
               <div className="gm-advice-box">
                 <strong>Expert Advice:</strong> {forecast.expert_advice}
@@ -1703,8 +1917,22 @@ const App: React.FC = () => {
                   <span>{t.avoid}</span>
                 </div>
                 <p style={{ fontSize: '13px', color: 'var(--gm-text-secondary)' }}>
-                  {panelInfo.avoid}
+                  {typeof panelInfo.avoid === 'string' ? panelInfo.avoid : panelInfo.avoid.desc}
                 </p>
+                {typeof panelInfo.avoid === 'object' && Array.isArray(panelInfo.avoid.bullets) && panelInfo.avoid.bullets.length > 0 && (
+                  <ul className="gm-bullet-list">
+                    {panelInfo.avoid.bullets.map((b: string, i: number) => (
+                      <li key={i} className="gm-bullet-item">
+                        <span className="gm-bullet-dot" style={{ backgroundColor: '#d93025' }}></span>
+                        <span>{b}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div style={{ textAlign: 'center', fontSize: '11px', color: 'var(--gm-text-secondary)', opacity: 0.85, padding: '2px 0 6px 0' }}>
+                🌾 {panelInfo.faoRef || t.fao_ref}
               </div>
             </>
           )}

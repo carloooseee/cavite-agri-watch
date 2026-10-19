@@ -214,6 +214,7 @@ def analyze(ee, geometry, city_name, agri_model=None, scale=30):
     forecast = max(0.0, min(1.0, float(forecast)))
 
     meaning, advice = paper_models.TIER_TEXT[tier]
+    fao_data = paper_models.FAO_AGRONOMIC_GUIDELINES.get(tier, {})
     opa = paper_models.opa_alert(forecast)  # 5.2.4
 
     return {
@@ -226,6 +227,11 @@ def analyze(ee, geometry, city_name, agri_model=None, scale=30):
         "classification": tier,
         "meaning": meaning,
         "expert_advice": advice,
+        "diagnosis": fao_data.get("diagnosis", meaning),
+        "fao_routines": fao_data.get("field_routines", []),
+        "fao_inputs": fao_data.get("recommended_inputs", []),
+        "fao_avoid": fao_data.get("what_to_avoid", []),
+        "fao_reference": fao_data.get("fao_reference", "FAO Good Agricultural Practices (GAP)"),
         "accuracy_metric": paper_models.accuracy_summary(),
         "evi": round(stats.get("evi") or 0, 3),
         "ndwi": round(stats.get("ndwi") or 0, 3),

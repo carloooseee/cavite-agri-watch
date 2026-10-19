@@ -16,7 +16,12 @@ export interface ForecastData {
     city?: string;
     meaning?: string;
     expert_advice?: string;
+    diagnosis?: string;
     routines?: string[];
+    fao_routines?: string[];
+    fao_inputs?: string[];
+    fao_avoid?: string[];
+    fao_reference?: string;
     lag_1?: number;
     lag_2?: number;
     lag_3?: number;

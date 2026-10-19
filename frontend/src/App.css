@@ -569,6 +569,25 @@ body.dark .gm-progress-bar-bg {
   flex-shrink: 0;
 }
 
+.gm-fao-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: rgba(30, 142, 62, 0.12);
+  color: #1e8e3e;
+  border: 1px solid rgba(30, 142, 62, 0.25);
+  letter-spacing: 0.2px;
+}
+body.dark .gm-fao-tag {
+  background: rgba(74, 222, 128, 0.12);
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.25);
+}
+
 /* Text Button for Technical Details (Past Design Style) */
 .gm-details-text-btn {
   background: none;

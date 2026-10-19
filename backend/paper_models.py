@@ -38,21 +38,104 @@ TIER_TO_DASHBOARD = {
 
 TIER_TEXT = {
     "No Stress": (
-        "High photosynthetic activity expected; crops will likely remain healthy and productive.",
-        "Optimal conditions for peak yield; maintain standard precision irrigation.",
+        "Lush green canopy and healthy vegetative vigor. Crop photosynthesis and water absorption are running at peak performance.",
+        "Maintain normal irrigation cycles and routine weekly field scouting; keep drainage canals clear.",
     ),
     "Mild Stress": (
-        "Early signs of vigor reduction; minor monitoring required to prevent potential yield loss.",
-        "Early-stage vigor drop; check for leaf-scale moisture stress and soil salinity.",
+        "Early crop fatigue: leaves may show slight curling or dullness under afternoon heat, but root systems are sound and fully recoverable.",
+        "Shift watering to early morning (5:00-8:00 AM), check topsoil moisture at 10 cm, apply potassium foliar spray, and weed within 30 cm of crop bases.",
     ),
     "Moderate Stress": (
-        "Significant vegetation decline predicted; immediate soil and irrigation assessment recommended.",
-        "Significant metabolic failure risk; prioritize immediate high-impact foliar feeding.",
+        "Noticeable vegetation decline: lower leaves yellowing (chlorosis), wilting past midday, and stunted growth needing urgent field intervention.",
+        "Perform deep soak irrigation, apply rapid chelated foliar micronutrients (Zinc/Magnesium), and stop chemical herbicide sprays immediately.",
     ),
     "Severe Stress": (
-        "Critical crop failure risk; emergency intervention needed as vigor is below sustainable levels.",
-        "Emergency intervention required; prioritize soil remediation and intensive moisture management.",
+        "Critical crop distress: severe wilting, leaf tip scorch, and risk of permanent yield loss within 48-72 hours if unaddressed.",
+        "Emergency root-zone watering, prune scorched lower leaves to conserve water, apply protective mulch, and alert local municipal agriculturist.",
     ),
+}
+
+# Real, field-tested guidelines aligned with FAO Good Agricultural Practices (GAP) and PhilRice
+FAO_AGRONOMIC_GUIDELINES = {
+    "No Stress": {
+        "diagnosis": "Healthy green canopy with strong chlorophyll density and optimal leaf turgor. Crops are actively transpiring and metabolizing nutrients effectively.",
+        "field_routines": [
+            "Morning Irrigation (5:00 - 8:00 AM): Maintain regular 3–5 day schedule to minimize daytime evaporation.",
+            "Drainage Canal Check: Keep furrows and drainage clear to avoid water stagnation and root suffocation.",
+            "Weekly Border Scouting: Walk field perimeter weekly to catch early weed and pest ingress before it spreads.",
+            "Mulch Top-up: Maintain a 3–5 cm layer of rice straw or dried grass to protect topsoil from baking in the sun."
+        ],
+        "recommended_inputs": [
+            "Balanced Complete Fertilizer (14-14-14 N-P-K) or well-decomposed animal manure.",
+            "Beneficial Microorganisms (EM-1 or Trichoderma) to enhance root zone nutrient availability.",
+            "Maintenance Foliar Spray (Zinc + Magnesium) every 14 days to sustain rich green chlorophyll."
+        ],
+        "what_to_avoid": [
+            "Excessive synthetic Nitrogen application (causes weak, watery stems prone to lodging and insect attack).",
+            "Water stagnation lasting over 24 hours in flat furrows (leads to anaerobic root asphyxiation)."
+        ],
+        "fao_reference": "FAO Good Agricultural Practices (GAP) — Section 4: Soil Management & Crop Nutrition"
+    },
+    "Mild Stress": {
+        "diagnosis": "Early moisture fatigue and transpirational strain. Leaves show temporary midday rolling or slight loss of gloss, though vascular integrity is intact.",
+        "field_routines": [
+            "Shift Irrigation Hours: Water only in early morning (5:00 - 8:00 AM) or late afternoon to cut evaporation by 40%.",
+            "Soil Moisture Squeeze Test: Dig 10 cm deep; if soil crumbles without forming a loose ball, irrigate immediately.",
+            "Root-Zone Mulching: Spread a 5–7 cm layer of rice straw, rice hulls, or dry banana leaves around plant bases to lock in soil moisture.",
+            "Clear Weeds within 30 cm: Weeds consume up to half of available moisture and fertilizer—hand-weed around crop stems immediately."
+        ],
+        "recommended_inputs": [
+            "Potassium Boost (Muriate of Potash / 0-0-60 or clean wood ash): Regulates leaf stomata to reduce water transpiration.",
+            "Gentle Foliar Bio-stimulant: Spray diluted seaweed extract or fish amino acid (FAA) at dawn for quick foliar uptake.",
+            "Organic Vermicompost: Apply 1–2 handfuls per hill around root base to improve soil water-holding capacity."
+        ],
+        "what_to_avoid": [
+            "NEVER apply concentrated granular Urea (46-0-0) to dry soil (releases caustic ammonia and burns thirsty roots).",
+            "DO NOT spray foliar nutrients or pesticides during peak noon sun (10:00 AM – 3:00 PM) as droplets scorch leaves.",
+            "Avoid deep hoeing or cultivation near root crowns that shears delicate water-seeking feeder roots."
+        ],
+        "fao_reference": "FAO Good Agricultural Practices (GAP) — Section 5: Water Management & Abiotic Stress Mitigation"
+    },
+    "Moderate Stress": {
+        "diagnosis": "Substantial moisture deficit or nutrient lockout. Lower leaves exhibiting chlorosis (yellowing), delayed vegetative growth, and impaired photosynthetic output.",
+        "field_routines": [
+            "Deep Soak Irrigation: Irrigate slowly to allow water to penetrate 15–20 cm deep into root zones without eroding dry topsoil.",
+            "Soil Aeration & Crust Breaking: Lightly hoe crusted topsoil between rows to allow air and water to reach suffocating roots.",
+            "Daily Pest Inspection: Stressed plants emit distress volatiles that attract aphids, armyworms, and stem borers—check undersides of leaves daily.",
+            "Temporary Shade Protection: For vegetables and nurseries, erect temporary 30–50% shade netting to lower leaf temperatures."
+        ],
+        "recommended_inputs": [
+            "Chelated Zinc & Magnesium Foliar Spray: Applied at dawn to directly restart impaired chlorophyll synthesis.",
+            "Humic / Fulvic Acid Soil Drench: Dilute 1:1000 in irrigation water to stimulate root hair re-growth and unlock soil phosphorus.",
+            "Bio-protective Inoculant (Trichoderma): Protects vulnerable, stressed roots against soil-borne damping-off and rot pathogens."
+        ],
+        "what_to_avoid": [
+            "DO NOT apply chemical pesticides or systemic herbicides (weakened crops cannot metabolize toxins and will die).",
+            "DO NOT sow new seedlings or transplant until soil moisture stabilizes.",
+            "Avoid alternating between parched dry soil and sudden heavy flooding (causes root shock and fruit splitting)."
+        ],
+        "fao_reference": "FAO Good Agricultural Practices (GAP) — Section 6: Integrated Plant Nutrition & Stress Recovery"
+    },
+    "Severe Stress": {
+        "diagnosis": "Severe cellular dehydration and metabolic shutdown. Foliage shows extensive tip burn, permanent wilting, and high risk of irreversible yield collapse.",
+        "field_routines": [
+            "Low-Volume Basin/Drip Watering: Deliver gentle, targeted watering directly to root crowns; water slowly so it does not run off hardened soil.",
+            "Emergency Pruning of Dead Foliage: Cut off dead and severely scorched lower leaves to reduce transpirational water burden on surviving plant tissue.",
+            "Micro-Basin Contour Trenching: Shape small soil rings/trenches around plants to capture every drop of water.",
+            "Notify Agricultural Officer (OPA Cavite): Report crop stress to the Municipal / Provincial Agricultural Office for drought support and irrigation assistance."
+        ],
+        "recommended_inputs": [
+            "Kaolin Clay / Natural Anti-transpirant Spray: Shields foliage from intense solar radiation and lowers leaf surface temperature by 3–5°C.",
+            "Liquid Seaweed Extract + Amino Acids: Drench root base with mild biological extract to support cellular osmoprotection.",
+            "Thick Mulch Blanket (10 cm): Completely cover bed surfaces with rice straw, dry leaves, or husks to trap subterranean moisture."
+        ],
+        "what_to_avoid": [
+            "STRICTLY FORBIDDEN: Chemical fertilizers (Urea, Muriate of Potash, 14-14-14)—fertilizer salts in bone-dry soil will immediately dehydrate and kill remaining roots via reverse osmosis.",
+            "DO NOT flood dry, baked clay soils rapidly (causes root drowning and collar rot).",
+            "Avoid running heavy machinery or foot traffic across root zones (compacts depleted soil pores permanently)."
+        ],
+        "fao_reference": "FAO Good Agricultural Practices (GAP) — Section 7: Disaster Risk Management & Emergency Crop Salvation"
+    }
 }
 
 _state = {"rf_reg": None, "rf_clf": None, "cnn": None, "calibrator": None, "loaded": False}
