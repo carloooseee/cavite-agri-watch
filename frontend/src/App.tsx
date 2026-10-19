@@ -10,8 +10,6 @@ import VectorImageLayer from 'ol/layer/VectorImage';
 import VectorSource from 'ol/source/Vector';
 import GeoJSON from 'ol/format/GeoJSON';
 import { Style, Stroke, Fill, Text } from 'ol/style';
-import { Select } from 'ol/interaction';
-import { click } from 'ol/events/condition';
 import { AgriApi, type ForecastData } from './services/api';
 import ValidationEvidence from './components/ValidationEvidence';
 import XYZ from 'ol/source/XYZ';
@@ -80,7 +78,6 @@ const App: React.FC = () => {
   const philippinesLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const caviteLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const caviteSourceRef = useRef<VectorSource | null>(null);
-  const selectHighlightRef = useRef<Select | null>(null);
   const selectedZoneRef = useRef<string>("Cavite Province");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cityDataMapRef = useRef<Map<string, { geom: any; geomGeoJson: any }>>(new Map());
@@ -634,16 +631,59 @@ const App: React.FC = () => {
       view: new View({ center: caviteCenter, zoom: 10, minZoom: 5.5, extent: phExtent }),
     });
 
-    // 3. Selection Interaction (filtered strictly to caviteLayer)
-    // No green highlight — selected municipality is styled directly on caviteLayer as slightly darker
-    const selectHighlight = new Select({
-      condition: click,
-      layers: [ caviteLayer ],
-      style: () => [], // In-place styling via caviteLayer
-    });
-    selectHighlightRef.current = selectHighlight;
+    // 3. Native Map Click Selection for Cavite Municipalities
+    // Directly updates selectedZoneRef without any intercepting Select interaction so region NEVER disappears
+    mapRef.current.on('singleclick', (evt) => {
+      const hit = mapRef.current?.forEachFeatureAtPixel(evt.pixel, (feat, layer) => {
+        if (layer === caviteLayer && feat instanceof Feature) return feat;
+        return null;
+      });
 
-    mapRef.current.addInteraction(selectHighlight);
+      if (hit && hit instanceof Feature) {
+        const cityName = hit.get('name') || "Unknown Area";
+        selectedZoneRef.current = cityName;
+        caviteLayerRef.current?.changed();
+
+        setActiveZone(cityName);
+        setSearchQuery(cityName);
+        setIsDrawerOpen(true);
+
+        const geom = hit.getGeometry();
+        if (geom) {
+          mapRef.current?.getView().fit(geom.getExtent(), { 
+            duration: 800, 
+            padding: [50, 50, 50, 50],
+            maxZoom: 14 
+          });
+
+          const geoJsonWriter = new GeoJSON();
+          const geomGeoJson = geoJsonWriter.writeGeometryObject(geom, {
+            featureProjection: 'EPSG:3857',
+            dataProjection: 'EPSG:4326',
+          });
+          setClickedGeometry(geomGeoJson);
+        }
+
+        if (ndviLayerRef.current && mapRef.current) {
+          mapRef.current.removeLayer(ndviLayerRef.current);
+          ndviLayerRef.current = null;
+          setActiveLayer('None');
+        }
+
+        if (satelliteLayerRef.current && mapRef.current) {
+          mapRef.current.removeLayer(satelliteLayerRef.current);
+          satelliteLayerRef.current = null;
+        }
+        setIsSatelliteLoaded(false);
+        setShowSatellite(false);
+
+        setHealthStatus("Awaiting Analysis");
+
+        if (socket.current?.readyState === WebSocket.OPEN) {
+          socket.current.send(JSON.stringify({ name: cityName }));
+        }
+      }
+    });
 
     // Dynamic pointer cursor only for desktop mice (bypassed on touch to prevent mobile frame drops)
     if (typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches) {
@@ -657,63 +697,6 @@ const App: React.FC = () => {
         }
       });
     }
-
-    // 4. Trigger Bridge on Click
-    selectHighlight.on('select', (e) => {
-      if (e.selected.length > 0) {
-        const feature = e.selected[0];
-        const cityName = feature.get('name') || "Unknown Area";
-        selectedZoneRef.current = cityName;
-        caviteLayerRef.current?.changed();
-
-        setActiveZone(cityName);
-        setSearchQuery(cityName);
-        setIsDrawerOpen(true);
-
-        // Extract the feature's exact polygon in EPSG:4326 for the backend
-        const geom = feature.getGeometry();
-        if (geom) {
-          // Zoom to the selected municipality using its bounding box (Extent)
-          mapRef.current?.getView().fit(geom.getExtent(), { 
-            duration: 800, 
-            padding: [50, 50, 50, 50],
-            maxZoom: 14 
-          });
-
-          // Use OL's built-in GeoJSON writer to convert the geometry to 4326
-          const geoJsonWriter = new GeoJSON();
-          const geomGeoJson = geoJsonWriter.writeGeometryObject(geom, {
-            featureProjection: 'EPSG:3857',
-            dataProjection: 'EPSG:4326',
-          });
-          setClickedGeometry(geomGeoJson);
-        }
-
-        // Clear any existing NDVI layer when switching zones
-        if (ndviLayerRef.current && mapRef.current) {
-          mapRef.current.removeLayer(ndviLayerRef.current);
-          ndviLayerRef.current = null;
-          setActiveLayer('None');
-        }
-
-        // Clear any existing satellite layer when switching zones
-        if (satelliteLayerRef.current && mapRef.current) {
-          mapRef.current.removeLayer(satelliteLayerRef.current);
-          satelliteLayerRef.current = null;
-        }
-        setIsSatelliteLoaded(false);
-        setShowSatellite(false);
-
-        setHealthStatus("Awaiting Analysis");
-
-        if (socket.current?.readyState === WebSocket.OPEN) {
-          socket.current.send(JSON.stringify({ name: cityName }));
-        }
-      } else {
-        selectedZoneRef.current = "Cavite Province";
-        caviteLayerRef.current?.changed();
-      }
-    });
 
     // 5. Parallel Batch Feature Loading (all 22 cities fetched concurrently in parallel and added as 1 batch)
     const loadCitiesParallel = async () => {
@@ -766,7 +749,6 @@ const App: React.FC = () => {
       philippinesLayerRef.current = null;
       caviteLayerRef.current = null;
       caviteSourceRef.current = null;
-      selectHighlightRef.current = null;
       socket.current?.close();
     };
   }, []);
@@ -1030,7 +1012,6 @@ const App: React.FC = () => {
     caviteLayerRef.current?.changed();
 
     if (cityName === "Cavite Province") {
-      selectHighlightRef.current?.getFeatures().clear();
       setActiveZone("Cavite Province");
       setClickedGeometry(null);
       setHealthStatus("Awaiting Target");
@@ -1064,12 +1045,6 @@ const App: React.FC = () => {
         });
       }
       setClickedGeometry(cityData.geomGeoJson);
-
-      const feature = caviteSourceRef.current?.getFeatures().find(f => f.get('name') === cityName);
-      if (feature && selectHighlightRef.current) {
-        selectHighlightRef.current.getFeatures().clear();
-        selectHighlightRef.current.getFeatures().push(feature);
-      }
     }
 
     if (ndviLayerRef.current && mapRef.current) {
