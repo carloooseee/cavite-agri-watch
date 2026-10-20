@@ -17,24 +17,45 @@ import zone_analysis
 
 app = FastAPI()
 
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Enable CORS so your Frontend can talk to this Backend
+cors_origins_env = os.getenv("ALLOWED_ORIGINS", "*")
+allow_origins = ["*"] if cors_origins_env == "*" else [o.strip() for o in cors_origins_env.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allow_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # 1. AUTHENTICATION & MODEL LOADING
-SERVICE_ACCOUNT_FILE = 'cavite-agri-watch-7717292883ca.json'
-SERVICE_ACCOUNT_EMAIL = "carlo10lg3@gmail.com"
-MODEL_PATH = 'data/agri_model.pkl'
+SERVICE_ACCOUNT_FILE = os.getenv(
+    'GEE_SERVICE_ACCOUNT_FILE',
+    os.path.join(BACKEND_DIR, 'cavite-agri-watch-7717292883ca.json')
+)
+SERVICE_ACCOUNT_EMAIL = os.getenv("GEE_SERVICE_ACCOUNT_EMAIL", "carlo10lg3@gmail.com")
+MODEL_PATH = os.getenv('MODEL_PATH', os.path.join(BACKEND_DIR, 'data', 'agri_model.pkl'))
 
 # Initialize GEE (Benchmark: Information Retrieval)
 try:
-    credentials = ee.ServiceAccountCredentials(SERVICE_ACCOUNT_EMAIL, SERVICE_ACCOUNT_FILE)
-    ee.Initialize(credentials)
-    print("GEE Initialized Successfully!")
+    sa_json_env = os.getenv("GEE_SERVICE_ACCOUNT_JSON") or os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+    if sa_json_env:
+        key_data = json.loads(sa_json_env)
+        credentials = ee.ServiceAccountCredentials(
+            key_data.get("client_email", SERVICE_ACCOUNT_EMAIL),
+            key_data=json.dumps(key_data)
+        )
+        ee.Initialize(credentials)
+        print("GEE Initialized Successfully (via environment JSON)!")
+    elif os.path.exists(SERVICE_ACCOUNT_FILE):
+        credentials = ee.ServiceAccountCredentials(SERVICE_ACCOUNT_EMAIL, SERVICE_ACCOUNT_FILE)
+        ee.Initialize(credentials)
+        print("GEE Initialized Successfully (via credentials file)!")
+    else:
+        ee.Initialize()
+        print("GEE Initialized Successfully (via default credentials)!")
 except Exception as e:
     print(f"Failed to initialize GEE: {e}")
 
@@ -437,11 +458,12 @@ async def sync_data():
             
             if not df_new.empty:
                 latest_record = df_new.iloc[-1:]
-                df_hist = pd.read_csv('data/cavite_history.csv')
+                hist_path = os.path.join(BACKEND_DIR, 'data', 'cavite_history.csv')
+                df_hist = pd.read_csv(hist_path)
                 df_hist['date'] = pd.to_datetime(df_hist['date'])
                 if latest_record['date'].iloc[0] not in df_hist['date'].values:
                     df_hist = pd.concat([df_hist, latest_record]).sort_values('date')
-                    df_hist.to_csv('data/cavite_history.csv', index=False)
+                    df_hist.to_csv(hist_path, index=False)
             
             # Phase 3: Model Retraining
             yield 'data: ' + json.dumps({"phase": "Retraining", "status": "Triggering agri_model.pkl retraining..."}) + '\n\n'
@@ -462,8 +484,8 @@ async def sync_data():
 
 @app.get("/cvip/evidence")
 def get_cvip_evidence():
-    before_path = "data/cvip_output/before_after/BEFORE_raw_unmasked.png"
-    after_path = "data/cvip_output/before_after/AFTER_masked_clipped.png"
+    before_path = os.path.join(BACKEND_DIR, "data", "cvip_output", "before_after", "BEFORE_raw_unmasked.png")
+    after_path = os.path.join(BACKEND_DIR, "data", "cvip_output", "before_after", "AFTER_masked_clipped.png")
     
     def get_b64(path):
         if not os.path.exists(path):

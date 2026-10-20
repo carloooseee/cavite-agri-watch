@@ -3,6 +3,7 @@ services:
     image: python:3.11-slim
     volumes:
       - ./backend:/app
+      - ./models:/models:ro
     working_dir: /app
     ports:
       - "8000:8000"

@@ -21,7 +21,12 @@ import numpy as np
 import pandas as pd
 
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
-MODELS_DIR = os.path.abspath(os.path.join(BACKEND_DIR, "..", "models"))
+MODELS_DIR = os.getenv("MODELS_DIR") or os.path.abspath(os.path.join(BACKEND_DIR, "..", "models"))
+if not os.path.exists(MODELS_DIR):
+    for candidate in ["/models", os.path.join(BACKEND_DIR, "models"), os.path.join(os.getcwd(), "models")]:
+        if os.path.exists(candidate):
+            MODELS_DIR = candidate
+            break
 
 CS_DIR = os.path.join(MODELS_DIR, "crop_stress_prediction")
 CNN_DIR = os.path.join(MODELS_DIR, "cnn_landcover")

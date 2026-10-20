@@ -17,10 +17,12 @@ import pandas as pd
 
 import paper_models
 
-GEOJSON_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend", "public", "geojson")
-)
-HISTORY_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "cavite_history.csv")
+_BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+_LOCAL_GEOJSON = os.path.join(_BACKEND_DIR, "data", "geojson")
+_SHARED_GEOJSON = os.path.abspath(os.path.join(_BACKEND_DIR, "..", "frontend", "public", "geojson"))
+
+GEOJSON_DIR = os.getenv("GEOJSON_DIR") or (_LOCAL_GEOJSON if os.path.isdir(_LOCAL_GEOJSON) else _SHARED_GEOJSON)
+HISTORY_CSV = os.path.join(_BACKEND_DIR, "data", "cavite_history.csv")
 PROVINCE_NAME = "Cavite Province"
 HISTORICAL_YEARS = 5
 CACHE_TTL_S = 6 * 3600

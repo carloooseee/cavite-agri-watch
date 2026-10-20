@@ -1,14 +1,21 @@
-export default class CustomReporter {
+import type { Reporter } from 'vitest/node';
+
+type TestModuleArg = Parameters<NonNullable<Reporter['onTestModuleCollected']>>[0];
+type TestCaseArg = Parameters<NonNullable<Reporter['onTestCaseResult']>>[0];
+
+export default class CustomReporter implements Reporter {
   private total = 0;
   private passed = 0;
   private failed = 0;
 
-  onTestModuleCollected(testModule: any) {
-    const countTests = (suite: any): number => {
+  onTestModuleCollected(testModule: TestModuleArg) {
+    const countTests = (suite: unknown): number => {
       let count = 0;
-      if (suite?.children) {
-        for (const child of suite.children) {
-          if (child.type === 'test') count++;
+      const s = suite as { children?: Iterable<unknown> };
+      if (s?.children) {
+        for (const child of s.children) {
+          const c = child as { type?: string };
+          if (c.type === 'test') count++;
           else count += countTests(child);
         }
       }
@@ -24,15 +31,16 @@ export default class CustomReporter {
     console.log(`\n======================== Frontend Test Session ========================`);
   }
 
-  onTestCaseResult(testCase: any) {
-    const res = typeof testCase.result === 'function' ? testCase.result() : testCase.result;
+  onTestCaseResult(testCase: TestCaseArg) {
+    const tc = testCase as { name?: string; result?: { state?: string; duration?: number } | (() => { state?: string; duration?: number }) };
+    const res = typeof tc.result === 'function' ? tc.result() : tc.result;
     if (res?.state === 'passed') {
       this.passed++;
       const duration = res.duration ? ` (${Math.round(res.duration)}ms)` : '';
-      console.log(`  ✓ [${this.passed} out of ${this.total} passed] ${testCase.name}${duration}`);
+      console.log(`  ✓ [${this.passed} out of ${this.total} passed] ${tc.name}${duration}`);
     } else if (res?.state === 'failed') {
       this.failed++;
-      console.log(`  ✗ [FAILED] ${testCase.name}`);
+      console.log(`  ✗ [FAILED] ${tc.name}`);
     }
   }
 

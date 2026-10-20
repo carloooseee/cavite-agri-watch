@@ -122,3 +122,5 @@ service-account*.json
 # Generated Datasets (Too heavy to commit to Git)
 data/cvip_output/
 *.npy
+
+!.env.example

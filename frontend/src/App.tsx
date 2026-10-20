@@ -10,12 +10,12 @@ import VectorImageLayer from 'ol/layer/VectorImage';
 import VectorSource from 'ol/source/Vector';
 import GeoJSON from 'ol/format/GeoJSON';
 import { Style, Stroke, Fill, Text } from 'ol/style';
-import { AgriApi, type ForecastData } from './services/api';
+import { AgriApi, BASE_URL, WS_URL, type ForecastData } from './services/api';
 import ValidationEvidence from './components/ValidationEvidence';
 import XYZ from 'ol/source/XYZ';
 import { jsPDF } from "jspdf";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import Feature from 'ol/Feature';
+import Feature, { type FeatureLike } from 'ol/Feature';
 import Point from 'ol/geom/Point';
 import CircleStyle from 'ol/style/Circle';
 import {
@@ -299,7 +299,7 @@ const App: React.FC = () => {
   const mapRef = useRef<OLMap | null>(null);
   const socket = useRef<WebSocket | null>(null);
   const ndviLayerRef = useRef<TileLayer<XYZ> | null>(null);
-  const philippinesLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const philippinesLayerRef = useRef<VectorImageLayer<VectorSource> | VectorLayer<VectorSource> | null>(null);
   const caviteLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const caviteSourceRef = useRef<VectorSource | null>(null);
   const selectedZoneRef = useRef<string>("Cavite Province");
@@ -487,7 +487,7 @@ const App: React.FC = () => {
 
     setIsSatelliteLoading(true);
     try {
-      const response = await fetch('http://127.0.0.1:8000/map/satellite/zone', {
+      const response = await fetch(`${BASE_URL}/map/satellite/zone`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(clickedGeometry)
@@ -541,7 +541,7 @@ const App: React.FC = () => {
         setActionProgress({ title: 'AI Analysis & Land Cover', status: 'Rendering Vegetation & Built Area mask...', percent: 75 });
 
         const builtColor = '#111827'; // Dark / black for clear distinction from colorful vegetation gradient
-        const dwRes = await fetch('http://127.0.0.1:8000/map/dynamic-world/zone', {
+        const dwRes = await fetch(`${BASE_URL}/map/dynamic-world/zone`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -768,7 +768,7 @@ const App: React.FC = () => {
     if (!mapElement.current) return;
 
     // 1. WebSocket Bridge Connection
-    socket.current = new WebSocket("ws://127.0.0.1:8000/ws/analytics");
+    socket.current = new WebSocket(WS_URL);
     socket.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
       console.log(data); // Using data to satisfy linter
@@ -799,7 +799,7 @@ const App: React.FC = () => {
       zIndex: 0,
       properties: { isSelectable: false },
     });
-    philippinesLayerRef.current = philippinesLayer as any;
+    philippinesLayerRef.current = philippinesLayer;
 
     // 2. High-performance single consolidated VectorLayer for all 22 Cavite municipalities
     // Styled in a refined slate palette that harmonizes with the greyed-out Philippines backdrop
@@ -808,7 +808,7 @@ const App: React.FC = () => {
     caviteSourceRef.current = caviteSource;
     const styleCache = new Map<string, Style>();
 
-    const getCityStyle = (feature: any) => {
+    const getCityStyle = (feature: FeatureLike) => {
       const cityName = feature.get('name') || '';
       const displayName = feature.get('displayName') || cityName;
       const isDark = document.body.classList.contains('dark');
@@ -1020,7 +1020,7 @@ const App: React.FC = () => {
     }
 
     try {
-      const res = await fetch('http://127.0.0.1:8000/map/ndvi/zone', {
+      const res = await fetch(`${BASE_URL}/map/ndvi/zone`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(clickedGeometry), // Send exact polygon, not a bbox
@@ -1064,7 +1064,7 @@ const App: React.FC = () => {
     while (attempts < maxAttempts) {
       try {
         setActionProgress({ title: 'Land Cover Analysis', status: `Querying GEE Satellite Cluster (Attempt ${attempts + 1})...`, percent: 50 });
-        const res = await fetch('http://127.0.0.1:8000/map/dynamic-world/zone', {
+        const res = await fetch(`${BASE_URL}/map/dynamic-world/zone`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(clickedGeometry),

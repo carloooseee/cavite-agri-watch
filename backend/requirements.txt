@@ -4,5 +4,12 @@ earthengine-api
 pandas
 scikit-learn
 numpy
+requests
+pillow
+websockets
+python-dotenv
+scipy
+torch
+torchvision
 pytest
 httpx

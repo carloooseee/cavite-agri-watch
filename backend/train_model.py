@@ -6,11 +6,13 @@ from sklearn.metrics import mean_absolute_error
 import pickle
 import os
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 def train_agri_model():
     print("--- Phase 3: Model Training Initiated ---")
     
     # 1. Load Data
-    csv_path = 'data/cavite_history.csv'
+    csv_path = os.path.join(BASE_DIR, 'data', 'cavite_history.csv')
     if not os.path.exists(csv_path):
         print(f"Error: {csv_path} not found!")
         return
@@ -41,7 +43,7 @@ def train_agri_model():
     print(f"Model Training Complete! MAE: {mae:.4f}")
 
     # 6. FIXED SAVE LOGIC (Benchmark: Model Persistence)
-    model_path = 'data/agri_model.pkl'
+    model_path = os.path.join(BASE_DIR, 'data', 'agri_model.pkl')
     print("Saving model to disk...")
     
     with open(model_path, 'wb') as f:
