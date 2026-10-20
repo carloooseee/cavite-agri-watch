@@ -189,26 +189,26 @@ async def get_zone_satellite_polygon(request: Request):
         return {"url_template": map_info['tile_fetcher'].url_format}
     except Exception as e:
         return {"error": str(e)}
-# Vegetation color gradients based on forecast results (soft/lighter to rich/darker density):
-VEG_PALETTES = {
-    'healthy': ['#86EFAC', '#22C55E', '#16A34A', '#14532D'],      # Soft mint -> Vibrant green -> Forest green -> Deep pine
-    'warning': ['#FEF08A', '#FACC15', '#CA8A04', '#713F12'],      # Pale yellow -> Golden amber -> Darker ochre -> Deep bronze
-    'stressed': ['#FCA5A5', '#EF4444', '#B91C1C', '#450A0A'],     # Soft coral -> Crimson -> Deep burgundy -> Dark mahogany
+# Solid vegetation colors based on forecast results:
+SOLID_VEG_COLORS = {
+    'healthy': '#00FF88',   # Solid Vibrant Neon Green
+    'warning': '#FACC15',   # Solid Amber Yellow
+    'stressed': '#EF4444',  # Solid Crimson Red
 }
-BUILT_AREA_COLOR = '#111827'  # Deep dark / black for clear contrast separating built area from vegetation
+BUILT_AREA_COLOR = '#111827'  # Deep dark solid black for built area, roads, and water bodies
 
-def get_veg_palette(status: str) -> list:
+def get_veg_color(status: str) -> str:
     s = (status or "").lower()
-    if 'warn' in s or 'moderat' in s or 'alert' in s:
-        return VEG_PALETTES['warning']
-    elif 'stress' in s or 'damag' in s or 'danger' in s:
-        return VEG_PALETTES['stressed']
-    return VEG_PALETTES['healthy']
+    if 'warn' in s or 'moderat' in s or 'alert' in s or 'mild' in s:
+        return SOLID_VEG_COLORS['warning']
+    elif 'stress' in s or 'damag' in s or 'danger' in s or 'sever' in s:
+        return SOLID_VEG_COLORS['stressed']
+    return SOLID_VEG_COLORS['healthy']
 
 
 @app.get("/map/dynamic-world")
 def get_cavite_dynamic_world():
-    """Returns a tile URL for the Dynamic World LULC layer across Cavite with greyed-out built areas and gradient vegetation."""
+    """Returns a tile URL for the Dynamic World LULC layer across Cavite with solid black built/roads/water and solid green vegetation."""
     try:
         countries = ee.FeatureCollection("FAO/GAUL/2015/level2")
         cavite = countries.filter(ee.Filter.eq('ADM2_NAME', 'Cavite'))
@@ -225,9 +225,13 @@ def get_cavite_dynamic_world():
             .select('label')
             .reduce(ee.Reducer.mode())
             .rename('label')
+            # Fill Dynamic World coverage gaps (cloudy/mountainous areas like GEA & Maragondon)
+            # with a neutral class (-1) so the NDVI/NDBI physics checks decide instead of
+            # the masked pixels silently falling back to black "missing patches".
+            .unmask(-1)
         )
 
-        # 2. Physics-Based Correction using NDVI with cloud-free fallback
+        # 2. Physics-Based Correction using NDVI and NDBI with cloud-free fallback
         def mask_clouds(img):
             qa = img.select('QA60')
             cloud_mask = 1 << 10
@@ -243,17 +247,32 @@ def get_cavite_dynamic_world():
         )
         s2_composite = s2_coll.map(mask_clouds).median().unmask(s2_coll.median())
         ndvi = s2_composite.normalizedDifference(['B8', 'B4']).rename('ndvi')
+        ndbi = s2_composite.normalizedDifference(['B11', 'B8']).rename('ndbi')
+        ndwi = s2_composite.normalizedDifference(['B3', 'B8']).rename('ndwi')
 
-        # Cavite province baseline: healthy gradient
-        veg_palette = VEG_PALETTES['healthy']
-        # True built areas: Dynamic World label 6 (built) verified by low vegetation vigor
-        is_built = dw.eq(6).And(ndvi.lt(0.38))
+        # Cavite province baseline: solid healthy green
+        veg_color = SOLID_VEG_COLORS['healthy']
 
-        # Continuous gradient for vegetation: lower vigor is lighter, denser vigor is darker
-        veg_viz = ndvi.visualize(min=0.20, max=0.80, palette=veg_palette)
+        # 3. Comprehensive Non-Vegetation Mask (Roads, Buildings, Bare Ground, Water):
+        # - Water/Ocean/Bays: DW 0, negative NDVI, or positive NDWI
+        # - Built & Roads: NDVI < 0.28, or DW built/bare (with NDVI < 0.48 to avoid false cloud/shadow patches over crops)
+        is_water = dw.eq(0).Or(ndvi.lt(0.0)).Or(ndvi.lt(0.12).And(ndwi.gt(0.0)))
+        is_non_veg = (
+            is_water
+            .Or(ndvi.lt(0.28))
+            .Or(dw.eq(6).And(ndvi.lt(0.48)))
+            .Or(dw.eq(7).And(ndvi.lt(0.38)))
+            .Or(ndbi.gt(-0.02).And(ndvi.lt(0.35)))
+        )
+        is_veg = is_non_veg.Not()
+
+        # Solid black base for all roads, built areas, and water (#111827)
         built_viz = ee.Image.constant(1).visualize(palette=[BUILT_AREA_COLOR])
+        # Solid colored vegetation (#00FF88)
+        veg_viz = ee.Image.constant(1).visualize(palette=[veg_color])
 
-        final_img = veg_viz.where(is_built, built_viz).clip(cavite)
+        # Composite: solid black base with solid colored crops overlaid
+        final_img = built_viz.where(is_veg, veg_viz).clip(cavite)
 
         map_info = final_img.getMapId()
         return {"url_template": map_info['tile_fetcher'].url_format}
@@ -264,16 +283,15 @@ def get_cavite_dynamic_world():
 async def get_zone_dynamic_world_polygon(request: Request):
     """
     Clips 10m LULC & NDVI composite to the exact municipality geometry.
-    - Built / Non-Vegetation areas are rendered in deep dark charcoal/black (#111827) for clear distinction.
-    - Vegetation areas are rendered as a continuous gradient (light to darker density/vigor)
-      matching the forecast results (Healthy, Warning, or Stressed).
+    - Built / Non-Vegetation areas (roads, urban fabric, ocean/water) are rendered in solid black (#111827).
+    - Vegetation areas are rendered in a single solid color matching the forecast results:
+      Healthy (#00FF88), Warning (#FACC15), or Stressed (#EF4444).
     """
     try:
         body = await request.json()
         if isinstance(body, dict) and 'geometry' in body:
             zone_geom = ee.Geometry(body['geometry'])
             status = str(body.get('status') or body.get('classification') or '')
-            is_dark = (body.get('theme') == 'dark')
             built_color = body.get('built_color') or BUILT_AREA_COLOR
         else:
             zone_geom = ee.Geometry(body)
@@ -292,9 +310,13 @@ async def get_zone_dynamic_world_polygon(request: Request):
             .select('label')
             .reduce(ee.Reducer.mode())
             .rename('label')
+            # Fill Dynamic World coverage gaps (cloudy/mountainous areas like GEA & Maragondon)
+            # with a neutral class (-1) so the NDVI/NDBI physics checks decide instead of
+            # the masked pixels silently falling back to black "missing patches".
+            .unmask(-1)
         )
 
-        # 2. Physics-Based Correction using NDVI with cloud-free fallback
+        # 2. Physics-Based Correction using NDVI and NDBI with cloud-free fallback
         def mask_clouds(img):
             qa = img.select('QA60')
             cloud_mask = 1 << 10
@@ -310,6 +332,8 @@ async def get_zone_dynamic_world_polygon(request: Request):
         )
         s2_composite = s2_coll.map(mask_clouds).median().unmask(s2_coll.median())
         ndvi = s2_composite.normalizedDifference(['B8', 'B4']).rename('ndvi')
+        ndbi = s2_composite.normalizedDifference(['B11', 'B8']).rename('ndbi')
+        ndwi = s2_composite.normalizedDifference(['B3', 'B8']).rename('ndwi')
 
         # If status was not provided in request, infer from zone mean NDVI
         if not status:
@@ -325,17 +349,28 @@ async def get_zone_dynamic_world_polygon(request: Request):
             except Exception:
                 status = 'healthy'
 
-        veg_palette = get_veg_palette(status)
+        veg_color = get_veg_color(status)
 
-        # True built areas: Dynamic World label 6 (built) verified by low vegetation vigor
-        is_built = dw.eq(6).And(ndvi.lt(0.38))
+        # 3. Comprehensive Non-Vegetation Mask (Roads, Buildings, Bare Ground, Water):
+        # - Water/Ocean/Bays: DW 0, negative NDVI, or positive NDWI
+        # - Built & Roads: NDVI < 0.28, or DW built/bare (with NDVI < 0.48 to avoid false cloud/shadow patches over crops)
+        is_water = dw.eq(0).Or(ndvi.lt(0.0)).Or(ndvi.lt(0.12).And(ndwi.gt(0.0)))
+        is_non_veg = (
+            is_water
+            .Or(ndvi.lt(0.28))
+            .Or(dw.eq(6).And(ndvi.lt(0.48)))
+            .Or(dw.eq(7).And(ndvi.lt(0.38)))
+            .Or(ndbi.gt(-0.02).And(ndvi.lt(0.35)))
+        )
+        is_veg = is_non_veg.Not()
 
-        # Continuous gradient for vegetation: lighter on sparse areas, darker on dense lush areas
-        veg_viz = ndvi.visualize(min=0.20, max=0.80, palette=veg_palette)
+        # Built area, roads, urban fabric, ocean/water are all SOLID BLACK (#111827)
         built_viz = ee.Image.constant(1).visualize(palette=[built_color])
+        # Vegetation is a single SOLID COLOR matching forecast status (Green, Amber, or Red)
+        veg_viz = ee.Image.constant(1).visualize(palette=[veg_color])
 
-        # Composite: full vegetation gradient with only true built structures stamped in built_color
-        final_img = veg_viz.where(is_built, built_viz).clip(zone_geom)
+        # Composite: solid black base for roads/built/water, with solid colored crops overlaid
+        final_img = built_viz.where(is_veg, veg_viz).clip(zone_geom)
 
         map_info = final_img.getMapId()
         return {"url_template": map_info['tile_fetcher'].url_format}

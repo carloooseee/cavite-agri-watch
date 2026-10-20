@@ -2045,28 +2045,28 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            {/* Gradient Bar with Min/Max and Built Area Swatch */}
+            {/* Solid Swatches for Crops and Built Area / Roads / Water */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--gm-text-secondary)', marginBottom: '3px' }}>
-                  <span><strong>{lang === 'EN' ? 'Crop Canopy:' : 'Dahon ng Tanim:'}</strong></span>
-                  <span style={{ fontSize: '10.5px', color: 'var(--gm-text-tertiary)' }}>
-                    {lang === 'EN' ? 'Light (Sparse / Young) ➔ Dark (Thick / Dense Canopy)' : 'Maliwanag (Manipis) ➔ Madilim (Makapal na Dahon)'}
-                  </span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11.5px', color: 'var(--gm-text-secondary)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span 
+                    style={{ 
+                      width: '14px', 
+                      height: '10px', 
+                      borderRadius: '2px', 
+                      display: 'inline-block',
+                      background: healthStatus.includes('Damaged') || healthStatus.includes('Stressed')
+                        ? '#EF4444'
+                        : healthStatus.includes('Moderate') || healthStatus.includes('Warning')
+                          ? '#FACC15'
+                          : '#00FF88',
+                    }} 
+                  />
+                  <span><strong>{lang === 'EN' ? 'Vegetation / Cropland:' : 'Taniman / Pananim:'}</strong></span>
                 </div>
-                <div 
-                  style={{ 
-                    width: '100%', 
-                    height: '11px', 
-                    borderRadius: '3px', 
-                    background: healthStatus.includes('Damaged') || healthStatus.includes('Stressed')
-                      ? 'linear-gradient(to right, #FCA5A5, #EF4444, #450A0A)'
-                      : healthStatus.includes('Moderate') || healthStatus.includes('Warning')
-                        ? 'linear-gradient(to right, #FEF08A, #FACC15, #CA8A04, #713F12)'
-                        : 'linear-gradient(to right, #86EFAC, #22C55E, #16A34A, #14532D)',
-                    border: '1px solid rgba(0,0,0,0.15)'
-                  }} 
-                />
+                <span style={{ fontSize: '11px', color: 'var(--gm-text-tertiary)' }}>
+                  {lang === 'EN' ? 'Active agricultural crops' : 'Aktibong pananim'}
+                </span>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11.5px', color: 'var(--gm-text-secondary)' }}>
@@ -2081,7 +2081,7 @@ const App: React.FC = () => {
                       display: 'inline-block' 
                     }} 
                   />
-                  <span><strong>{lang === 'EN' ? 'Built Area / Infrastructure:' : 'Tirahan at Kalsada:'}</strong></span>
+                  <span><strong>{lang === 'EN' ? 'Built Area, Roads & Water:' : 'Kalsada, Bahay at Tubig:'}</strong></span>
                 </div>
                 <span style={{ fontSize: '11px', color: 'var(--gm-text-tertiary)' }}>
                   {lang === 'EN' ? 'Excluded non-crop surfaces' : 'Hindi sakop na taniman'}
@@ -2094,8 +2094,8 @@ const App: React.FC = () => {
               <div className="gm-legend-explainer-box">
                 <p>
                   {lang === 'EN'
-                    ? "🛰️ This high-resolution overlay isolates living crops from roads and buildings. Dark charcoal areas represent urban infrastructure. Colored pixels show active vegetation, where darker shades represent thicker leaf density and higher biomass."
-                    : "🛰️ Ibinubukod ng mapa ang buhay na tanim sa mga kalsada at bahay. Ang kulay uling ay mga istruktura, habang ang may kulay ay buhay na pananim. Ang mas madidilim na kulay ay nangangahulugang mas makapal at masagana ang mga dahon."}
+                    ? "🛰️ This high-resolution overlay isolates living crops from roads, buildings, and water bodies. Solid black areas represent roads, built infrastructure, and water. Solid colored pixels indicate verified active cropland colored by the forecast status."
+                    : "🛰️ Ibinubukod ng mapa ang buhay na tanim sa mga kalsada, bahay, at katubigan. Ang solidong itim ay mga kalsada, istruktura, at tubig. Ang may kulay ay mga napatunayang aktibong taniman ayon sa resulta ng pagtataya."}
                 </p>
               </div>
             )}
@@ -2238,23 +2238,19 @@ const App: React.FC = () => {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
                   <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--gm-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-                    {lang === 'EN' ? 'Crop Health Scale (NDVI)' : 'Antas ng Kalusugan (NDVI)'}
+                    {lang === 'EN' ? 'Crop Health Scale (AI Forecast)' : 'Antas ng Kalusugan (AI Forecast)'}
                   </span>
                   <div className="gm-legend-item-row">
-                    <span className="gm-legend-swatch" style={{ background: '#15803d' }}></span>
-                    <span><strong>{lang === 'EN' ? 'No Stress (> 0.60):' : 'Walang Stress (> 0.60):'}</strong> {lang === 'EN' ? 'Optimal photosynthesis & lush vigor' : 'Masiglang paglaki'}</span>
+                    <span className="gm-legend-swatch" style={{ background: '#00FF88' }}></span>
+                    <span><strong>{lang === 'EN' ? 'No Stress / Healthy:' : 'Walang Stress / Malusog:'}</strong> {lang === 'EN' ? 'Optimal photosynthesis & lush vigor' : 'Masiglang paglaki'}</span>
                   </div>
                   <div className="gm-legend-item-row">
-                    <span className="gm-legend-swatch" style={{ background: '#b45309' }}></span>
-                    <span><strong>{lang === 'EN' ? 'Mild Stress (0.45 - 0.58):' : 'Bahagyang Stress (0.45 - 0.58):'}</strong> {lang === 'EN' ? 'Early heat or moisture fatigue' : 'Maagang pagkapagod sa init o tubig'}</span>
+                    <span className="gm-legend-swatch" style={{ background: '#FACC15' }}></span>
+                    <span><strong>{lang === 'EN' ? 'Warning / Moderate Stress:' : 'Babala / Katamtamang Stress:'}</strong> {lang === 'EN' ? 'Early heat/water fatigue or nutrient chlorosis' : 'Maagang pagkapagod sa init, tubig o abono'}</span>
                   </div>
                   <div className="gm-legend-item-row">
-                    <span className="gm-legend-swatch" style={{ background: '#ea580c' }}></span>
-                    <span><strong>{lang === 'EN' ? 'Moderate Stress (0.30 - 0.45):' : 'Katamtaman (0.30 - 0.45):'}</strong> {lang === 'EN' ? 'Noticeable leaf chlorosis & yellowing' : 'Paninilaw ng dahon'}</span>
-                  </div>
-                  <div className="gm-legend-item-row">
-                    <span className="gm-legend-swatch" style={{ background: '#dc2626' }}></span>
-                    <span><strong>{lang === 'EN' ? 'Severe Stress (< 0.30):' : 'Malala (< 0.30):'}</strong> {lang === 'EN' ? 'Severe wilting, critical yield loss risk' : 'Matinding pagkalanta, panganib ng pagkasira'}</span>
+                    <span className="gm-legend-swatch" style={{ background: '#EF4444' }}></span>
+                    <span><strong>{lang === 'EN' ? 'Severe / Critical Stress:' : 'Malala / Kritikal na Pinsala:'}</strong> {lang === 'EN' ? 'Severe wilting, critical yield loss risk' : 'Matinding pagkalanta, panganib ng pagkasira'}</span>
                   </div>
                 </div>
 
@@ -2264,15 +2260,11 @@ const App: React.FC = () => {
                   </span>
                   <div className="gm-legend-item-row">
                     <span className="gm-legend-swatch" style={{ background: '#111827', border: '1px solid rgba(255,255,255,0.25)' }}></span>
-                    <span><strong>{lang === 'EN' ? 'Built Area:' : 'Tirahan/Kalsada:'}</strong> {lang === 'EN' ? 'Urban infrastructure & non-cropland' : 'Mga bahay at kalsada'}</span>
+                    <span><strong>{lang === 'EN' ? 'Built Area, Roads & Water:' : 'Kalsada, Bahay at Tubig:'}</strong> {lang === 'EN' ? 'Excluded non-crop surfaces, infrastructure & water' : 'Mga kalsada, bahay at katubigan'}</span>
                   </div>
                   <div className="gm-legend-item-row">
                     <span className="gm-legend-swatch" style={{ background: theme === 'dark' ? '#1E293B' : '#64748B' }}></span>
                     <span><strong>{lang === 'EN' ? 'Selected Municipality:' : 'Napiling Bayan:'}</strong> {lang === 'EN' ? 'Darker highlight on click' : 'Mas madilim na kulay kapag pinili'}</span>
-                  </div>
-                  <div className="gm-legend-item-row">
-                    <span className="gm-legend-swatch" style={{ background: theme === 'dark' ? '#0b1320' : '#a5c9eb' }}></span>
-                    <span><strong>{lang === 'EN' ? 'Water Bodies:' : 'Katubigan:'}</strong> {lang === 'EN' ? 'Manila Bay & Laguna de Bay' : 'Manila Bay at Laguna de Bay'}</span>
                   </div>
                 </div>
               </div>
