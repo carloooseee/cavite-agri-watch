@@ -23,9 +23,24 @@ BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 cors_origins_env = os.getenv("ALLOWED_ORIGINS", "*")
 allow_origins = ["*"] if cors_origins_env == "*" else [o.strip() for o in cors_origins_env.split(",") if o.strip()]
 
+# Guarantee custom domains and development environments are always permitted
+known_domains = [
+    "https://agriwatch.site",
+    "https://www.agriwatch.site",
+    "http://agriwatch.site",
+    "http://www.agriwatch.site",
+    "https://cavite-agri-watch.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:3000",
+]
+for d in known_domains:
+    if d not in allow_origins and "*" not in allow_origins:
+        allow_origins.append(d)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins,
+    allow_origin_regex=r"^https?://.*",
     allow_methods=["*"],
     allow_headers=["*"],
 )

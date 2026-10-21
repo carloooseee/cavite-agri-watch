@@ -600,7 +600,7 @@ const App: React.FC = () => {
     if (!size) return;
     mapCanvas.width = size[0];
     mapCanvas.height = size[1];
-    const mapContext = mapCanvas.getContext('2d');
+    const mapContext = mapCanvas.getContext('2d', { willReadFrequently: true });
     if (!mapContext) return;
 
     // Merge all OL layers into one canvas
