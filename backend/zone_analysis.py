@@ -6,6 +6,7 @@ Nothing here is hard-coded per city: indices, vigor lags, rainfall, cloud noise,
 baseline and land-cover all come from Google Earth Engine for the requested geometry, and the
 stress forecast / tier / OPA alert come from the trained models in /models (via paper_models).
 """
+import gc
 import json
 import os
 import time
@@ -162,8 +163,8 @@ def analyze(ee, geometry, city_name, agri_model=None, scale=30):
     ndre = composite.normalizedDifference(["B8", "B5"]).rename("ndre").updateMask(veg)
     indices = ee.Image.cat([ndvi, evi, ndwi, lswi, ndre])
 
-    # Everything below hits Earth Engine; run it concurrently.
-    with ThreadPoolExecutor(max_workers=12) as pool:
+    # Keep workers conservative (max_workers=3) so concurrent memory stays well below 512MB on Render
+    with ThreadPoolExecutor(max_workers=3) as pool:
         f_stats = pool.submit(
             lambda: indices.reduceRegion(
                 ee.Reducer.mean(), zone, scale=scale, maxPixels=1e9, bestEffort=True
@@ -219,7 +220,7 @@ def analyze(ee, geometry, city_name, agri_model=None, scale=30):
     fao_data = paper_models.FAO_AGRONOMIC_GUIDELINES.get(tier, {})
     opa = paper_models.opa_alert(forecast)  # 5.2.4
 
-    return {
+    res = {
         "status": "Success",
         "city": city_name,
         "current_ndvi": round(current, 3),
@@ -252,6 +253,8 @@ def analyze(ee, geometry, city_name, agri_model=None, scale=30):
         "opa_alert_score": opa[0] if opa else None,
         "opa_alert_probability": opa[1] if opa else None,
     }
+    gc.collect()
+    return res
 
 
 def analyze_cached(ee, city_name, agri_model=None):

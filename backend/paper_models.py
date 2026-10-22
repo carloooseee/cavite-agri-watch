@@ -191,6 +191,7 @@ def load_models():
     global _cnn_mod
     try:
         import torch
+        torch.set_num_threads(1)
         _cnn_mod = _load_module("train_cnn_landcover", os.path.join(CNN_DIR, "train_cnn_landcover.py"))
         net = _cnn_mod.LandCoverCNN(in_channels=4, num_classes=2)
         net.load_state_dict(torch.load(os.path.join(CNN_DIR, "cnn_landcover_model.pt"), map_location="cpu"))
@@ -211,6 +212,8 @@ def load_models():
     except Exception as e:
         print(f"OPA calibrator unavailable: {e}")
 
+    import gc
+    gc.collect()
     return status()
 
 
@@ -320,7 +323,7 @@ def cnn_predict_patch(patch_hwc):
         return None
     x = np.transpose(patch_hwc.astype(np.float32), (2, 0, 1))
     x = np.clip(x / 0.5, 0.0, 1.0)  # identical normalisation to SentinelPatchDataset
-    with torch.no_grad():
+    with torch.inference_mode():
         probs = torch.softmax(_state["cnn"](torch.from_numpy(x).unsqueeze(0)), dim=1)[0].numpy()
     cls = int(np.argmax(probs))
     label = "Vegetated / Cropland" if cls == 1 else "Urban / Built-up / Non-vegetated"
