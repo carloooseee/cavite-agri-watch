@@ -21,7 +21,7 @@ BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Enable CORS so your Frontend can talk to this Backend
 cors_origins_env = os.getenv("ALLOWED_ORIGINS", "*")
-allow_origins = ["*"] if cors_origins_env == "*" else [o.strip() for o in cors_origins_env.split(",") if o.strip()]
+allow_origins = ["*"] if cors_origins_env == "*" else [o.strip().rstrip('/') for o in cors_origins_env.split(",") if o.strip()]
 
 # Guarantee custom domains and development environments are always permitted
 known_domains = [
@@ -29,6 +29,8 @@ known_domains = [
     "https://www.agriwatch.site",
     "http://agriwatch.site",
     "http://www.agriwatch.site",
+    "https://agriwatch.space",
+    "https://www.agriwatch.space",
     "https://cavite-agri-watch.vercel.app",
     "http://localhost:5173",
     "http://localhost:3000",
