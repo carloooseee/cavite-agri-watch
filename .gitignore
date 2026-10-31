@@ -26,3 +26,8 @@ adviser_package/
 
 # Generated image datasets
 models/cnn_landcover/labeled_images_dataset/
+
+# Docker test files
+Dockerfile
+Dockerfile*
+.dockerignore

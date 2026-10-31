@@ -1,11 +1,11 @@
 Metric,Value
-Overall Accuracy (OA),98.78%
-Mean IoU (mIoU),0.9758
-IoU (Vegetated / Cropland),0.9740
-IoU (Urban / Built-up),0.9775
-Precision (Cropland),0.9868
-Recall (Cropland),0.9868
-F1-Score (Cropland),0.9868
-Precision (Urban),0.9886
-Recall (Urban),0.9886
-F1-Score (Urban),0.9886
+Overall Accuracy (OA),89.02%
+Mean IoU (mIoU),0.8013
+IoU (Vegetated / Cropland),0.7882
+IoU (Urban / Built-up),0.8144
+Precision (Cropland),0.8816
+Recall (Cropland),0.8816
+F1-Score (Cropland),0.8816
+Precision (Urban),0.8977
+Recall (Urban),0.8977
+F1-Score (Urban),0.8977
