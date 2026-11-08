@@ -31,3 +31,6 @@ models/cnn_landcover/labeled_images_dataset/
 Dockerfile
 Dockerfile*
 .dockerignore
+
+#Thesis respondents
+Thesis Respondents (Responses) (1).xlsx
