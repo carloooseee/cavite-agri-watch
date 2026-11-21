@@ -3,17 +3,23 @@ import ee
 import pickle
 import pandas as pd
 import numpy as np
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import json
 import asyncio
 import base64
 from datetime import datetime, timedelta
+from typing import Optional
 from fastapi.responses import StreamingResponse
 from train_model import train_agri_model
 import paper_models
 import zone_analysis
+from telemetry_cache import (
+    CachedTelemetryDecorator,
+    TelemetryProvider,
+    UncachedTelemetryService,
+)
 
 app = FastAPI()
 
@@ -85,6 +91,30 @@ if os.path.exists(MODEL_PATH):
 
 # Load the research models from /models (CNN 5.2.1, Random Forest 5.2.3, OPA calibrator 5.2.4)
 paper_models.load_models()
+
+# Decoupled TTL Cache-Aside Decorator for municipal telemetry/forecasts
+_uncached_telemetry_service = UncachedTelemetryService(
+    ee_module=ee,
+    agri_model_getter=lambda: agri_model,
+)
+_cached_telemetry_decorator = CachedTelemetryDecorator(
+    provider=_uncached_telemetry_service,
+    maxsize=256,
+    ttl=3600,
+)
+
+
+def get_telemetry_provider() -> TelemetryProvider:
+    """FastAPI dependency returning cached (Proposed) or uncached (Baseline) provider."""
+    enable_cache = os.getenv("ENABLE_TELEMETRY_CACHE", "true").strip().lower() not in (
+        "false",
+        "0",
+        "no",
+        "off",
+    )
+    if enable_cache:
+        return _cached_telemetry_decorator
+    return _uncached_telemetry_service
 
 # 2. ENDPOINTS
 @app.get("/map/ndvi")
@@ -417,12 +447,51 @@ async def get_zone_dynamic_world_polygon(request: Request):
 
 
 @app.get("/predict/ndvi")
-async def predict_crop_health(city_name: str = "Cavite Province"):
+async def predict_crop_health(
+    city_name: str = "Cavite Province",
+    window: str = "30d",
+    provider: TelemetryProvider = Depends(get_telemetry_provider),
+):
     """Province / municipality forecast by name: live GEE indices + trained RF/CNN/OPA models."""
     try:
-        return await asyncio.to_thread(zone_analysis.analyze_cached, ee, city_name, agri_model)
+        return await asyncio.to_thread(provider.get_municipal_telemetry, city_name, window)
     except Exception as e:
         return {"status": "Error", "message": str(e)}
+
+
+@app.get("/api/cache/metrics")
+def get_cache_metrics():
+    """Return observability metrics for the telemetry TTL cache."""
+    enable_cache = os.getenv("ENABLE_TELEMETRY_CACHE", "true").strip().lower() not in (
+        "false",
+        "0",
+        "no",
+        "off",
+    )
+    metrics = _cached_telemetry_decorator.get_metrics()
+    metrics["cache_enabled"] = enable_cache
+    return metrics
+
+
+@app.post("/api/cache/invalidate")
+def invalidate_telemetry_cache(municipality: Optional[str] = None):
+    """Invalidate cached telemetry for a single municipality or clear all entries."""
+    if municipality is not None and municipality.strip():
+        removed = _cached_telemetry_decorator.invalidate(municipality)
+        return {
+            "status": "Invalidated",
+            "scope": "municipality",
+            "municipality": municipality.strip().lower(),
+            "entries_removed": removed,
+        }
+    before = _cached_telemetry_decorator.cache_size
+    _cached_telemetry_decorator.clear_all()
+    return {
+        "status": "Invalidated",
+        "scope": "all",
+        "municipality": None,
+        "entries_removed": before,
+    }
 
 @app.post("/predict/indices/zone")
 async def predict_zone_indices(request: Request):
@@ -492,7 +561,10 @@ async def sync_data():
             if os.path.exists(MODEL_PATH):
                 with open(MODEL_PATH, 'rb') as f:
                     agri_model = pickle.load(f)
-            
+
+            # Purge stale telemetry cache entries after syncing and retraining
+            _cached_telemetry_decorator.clear_all()
+
             yield 'data: ' + json.dumps({"phase": "Completed", "status": f"Sync done. New MAE: {mae_score:.4f}"}) + '\n\n'
         except Exception as e:
             yield 'data: ' + json.dumps({"phase": "Error", "status": str(e)}) + '\n\n'
