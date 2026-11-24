@@ -9,8 +9,10 @@ import os
 import json
 import asyncio
 import base64
+import threading
 from datetime import datetime, timedelta
 from typing import Optional
+from cachetools import TTLCache
 from fastapi.responses import StreamingResponse
 from train_model import train_agri_model
 import paper_models
@@ -102,17 +104,22 @@ _cached_telemetry_decorator = CachedTelemetryDecorator(
     maxsize=256,
     ttl=3600,
 )
+_dynamic_world_zone_cache: TTLCache = TTLCache(maxsize=256, ttl=3600)
+_dynamic_world_zone_lock = threading.RLock()
 
 
-def get_telemetry_provider() -> TelemetryProvider:
-    """FastAPI dependency returning cached (Proposed) or uncached (Baseline) provider."""
-    enable_cache = os.getenv("ENABLE_TELEMETRY_CACHE", "true").strip().lower() not in (
+def _is_telemetry_cache_enabled() -> bool:
+    return os.getenv("ENABLE_TELEMETRY_CACHE", "true").strip().lower() not in (
         "false",
         "0",
         "no",
         "off",
     )
-    if enable_cache:
+
+
+def get_telemetry_provider() -> TelemetryProvider:
+    """FastAPI dependency returning cached (Proposed) or uncached (Baseline) provider."""
+    if _is_telemetry_cache_enabled():
         return _cached_telemetry_decorator
     return _uncached_telemetry_service
 
@@ -357,14 +364,27 @@ async def get_zone_dynamic_world_polygon(request: Request):
     """
     try:
         body = await request.json()
+        city_name = ''
         if isinstance(body, dict) and 'geometry' in body:
             zone_geom = ee.Geometry(body['geometry'])
             status = str(body.get('status') or body.get('classification') or '')
             built_color = body.get('built_color') or BUILT_AREA_COLOR
+            city_name = str(body.get('city_name') or '').strip()
         else:
             zone_geom = ee.Geometry(body)
             status = ''
             built_color = BUILT_AREA_COLOR
+
+        dw_cache_key = (
+            (city_name.lower(), status.strip().lower(), str(built_color).strip().lower())
+            if city_name
+            else None
+        )
+        if dw_cache_key is not None and _is_telemetry_cache_enabled():
+            with _dynamic_world_zone_lock:
+                cached_tile = _dynamic_world_zone_cache.get(dw_cache_key)
+                if cached_tile is not None:
+                    return dict(cached_tile)
 
         now = datetime.now()
         start = (now - timedelta(days=180)).strftime('%Y-%m-%d')
@@ -441,7 +461,11 @@ async def get_zone_dynamic_world_polygon(request: Request):
         final_img = built_viz.where(is_veg, veg_viz).clip(zone_geom)
 
         map_info = final_img.getMapId()
-        return {"url_template": map_info['tile_fetcher'].url_format}
+        tile_payload = {"url_template": map_info['tile_fetcher'].url_format}
+        if dw_cache_key is not None and _is_telemetry_cache_enabled():
+            with _dynamic_world_zone_lock:
+                _dynamic_world_zone_cache[dw_cache_key] = tile_payload
+        return tile_payload
     except Exception as e:
         return {"error": str(e)}
 
@@ -477,15 +501,21 @@ def get_cache_metrics():
 def invalidate_telemetry_cache(municipality: Optional[str] = None):
     """Invalidate cached telemetry for a single municipality or clear all entries."""
     if municipality is not None and municipality.strip():
+        target = municipality.strip().lower()
         removed = _cached_telemetry_decorator.invalidate(municipality)
+        with _dynamic_world_zone_lock:
+            for k in [k for k in list(_dynamic_world_zone_cache.keys()) if k[0] == target]:
+                _dynamic_world_zone_cache.pop(k, None)
         return {
             "status": "Invalidated",
             "scope": "municipality",
-            "municipality": municipality.strip().lower(),
+            "municipality": target,
             "entries_removed": removed,
         }
     before = _cached_telemetry_decorator.cache_size
     _cached_telemetry_decorator.clear_all()
+    with _dynamic_world_zone_lock:
+        _dynamic_world_zone_cache.clear()
     return {
         "status": "Invalidated",
         "scope": "all",
@@ -494,12 +524,23 @@ def invalidate_telemetry_cache(municipality: Optional[str] = None):
     }
 
 @app.post("/predict/indices/zone")
-async def predict_zone_indices(request: Request):
-    """Same pipeline for an arbitrary clicked geometry."""
+async def predict_zone_indices(
+    request: Request,
+    provider: TelemetryProvider = Depends(get_telemetry_provider),
+):
+    """Same pipeline for an arbitrary clicked geometry, using TelemetryProvider TTL cache for municipalities."""
     try:
         body = await request.json()
         city_name = body.get('city_name', 'Unknown Area')
-        return await asyncio.to_thread(zone_analysis.analyze, ee, body.get('geometry'), city_name, agri_model)
+        window = body.get('window', '30d')
+        geometry = body.get('geometry')
+
+        if city_name and city_name.strip().lower() != "unknown area":
+            result = await asyncio.to_thread(provider.get_municipal_telemetry, city_name, window)
+            if not (isinstance(result, dict) and result.get("status") == "Error" and geometry):
+                return result
+
+        return await asyncio.to_thread(zone_analysis.analyze, ee, geometry, city_name, agri_model)
     except Exception as e:
         return {"status": "Error", "message": str(e)}
 
@@ -564,6 +605,8 @@ async def sync_data():
 
             # Purge stale telemetry cache entries after syncing and retraining
             _cached_telemetry_decorator.clear_all()
+            with _dynamic_world_zone_lock:
+                _dynamic_world_zone_cache.clear()
 
             yield 'data: ' + json.dumps({"phase": "Completed", "status": f"Sync done. New MAE: {mae_score:.4f}"}) + '\n\n'
         except Exception as e:
